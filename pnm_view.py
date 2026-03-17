@@ -36,8 +36,9 @@ def transcribe_video_url(url: str, model) -> str:
 
         # --- ANTI-403 CONFIGURATION ---
         ydl_opts = {
-            # Try 18 first, then fallback to best audio, then just best overall
-            "format": "18/bestaudio/best", 
+            # 🔴 CHANGE THIS LINE: "bestaudio/best" guarantees it will find a track 
+            # no matter what formats the specific video has available.
+            "format": "bestaudio/best", 
             "outtmpl": outtmpl,
             "noplaylist": True,
             "quiet": True,
