@@ -16,8 +16,8 @@ st.set_page_config(page_title="PNM Recruitment Form", layout="wide")
 @st.cache_resource
 def load_transcription_model():
     """Cache the whisper model so it doesn't reload on every run."""
-    # Consider using "base.en" if "turbo" is too slow on your deployment server
-    return whisper.load_model("turbo")
+    # Changed from "turbo" to "base" to prevent Streamlit memory crashes!
+    return whisper.load_model("base")
 
 # --- Audio/Video Processing Functions ---
 def transcribe_video_url(url: str, model) -> str:
