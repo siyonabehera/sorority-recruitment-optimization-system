@@ -484,7 +484,7 @@ if submit_button:
 
                 if uploaded_video is not None:
 
-                    with st.spinner("Processing uploaded file... This might take a minute."):
+                    with st.spinner("Processing submission."):
 
                         try:
 
