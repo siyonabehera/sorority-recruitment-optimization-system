@@ -24,28 +24,19 @@ def transcribe_video_url(url: str, model) -> str:
     with tempfile.TemporaryDirectory() as tmpdir:
         output_path = Path(tmpdir)
         outtmpl = str(output_path / "audio.%(ext)s")
-        cookie_path = str(output_path / "cookies.txt")
 
-        # --- Write Cookies from Secrets to Temp File ---
-        try:
-            with open(cookie_path, "w") as f:
-                f.write(st.secrets["youtube"]["cookies"])
-        except Exception as e:
-            st.warning("No YouTube cookies found in secrets. Proceeding without them...")
-            cookie_path = None
-
-        # --- ANTI-403 NUCLEAR CONFIGURATION ---
+        # --- OAUTH2 AUTHENTICATION CONFIGURATION ---
         ydl_opts = {
-            "format": "m4a/bestaudio/best", # m4a is native to YT, less likely to trigger extraction errors
+            "format": "m4a/bestaudio/best",
             "outtmpl": outtmpl,
             "noplaylist": True,
             "quiet": True,
-            # Skip IPv4 forcing unless strictly necessary, let yt-dlp negotiate
+            "source_address": "0.0.0.0",
+            # Enable the OAuth2 plugin for authentication
+            "username": "oauth2", 
             "extractor_args": {
                 "youtube": {
-                    # Stack clients: YT will try them in order until one passes the bot check
                     "player_client": ["android", "ios", "tv", "web"],
-                    # CRITICAL: Skip fetching the webpage/configs which triggers the 403 bot-trap
                     "player_skip": ["webpage", "configs"] 
                 }
             },
@@ -58,10 +49,6 @@ def transcribe_video_url(url: str, model) -> str:
                 "preferredquality": "192",
             }],
         }
-        
-        # Add the cookie file to options if it was successfully created
-        if cookie_path:
-            ydl_opts["cookiefile"] = cookie_path
         # -----------------------------
 
         # 1. Download
