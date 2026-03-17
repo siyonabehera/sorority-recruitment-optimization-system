@@ -16,7 +16,6 @@ st.set_page_config(page_title="PNM Recruitment Form", layout="wide")
 @st.cache_resource
 def load_transcription_model():
     """Cache the whisper model so it doesn't reload on every run."""
-    # Changed from "turbo" to "base" to prevent Streamlit memory crashes!
     return whisper.load_model("base")
 
 # --- Audio/Video Processing Functions ---
@@ -31,6 +30,16 @@ def transcribe_video_url(url: str, model) -> str:
             "outtmpl": outtmpl,
             "noplaylist": True,
             "quiet": True, # Suppress yt-dlp console output
+            
+            # --- NEW: BYPASS YOUTUBE 403 FORBIDDEN ---
+            "extractor_args": {
+                "youtube": {"player_client": ["android", "web"]}
+            },
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+            },
+            # ----------------------------------------
+            
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
@@ -103,7 +112,7 @@ st.markdown("Please enter your **Penn State Email** to begin. If you are already
 
 search_email = st.text_input("Enter your PSU Email (e.g., xyz123@psu.edu):").strip().lower()
 
-# INITIALIZE DEFAULTS (Added transcript)
+# INITIALIZE DEFAULTS
 defaults = {
     "name": "", "major": "", "minor": "", "hometown": "",
     "year": "Freshman", "hs_name": "", "hs_gpa": 0.0, "college_gpa": 0.0,
@@ -147,7 +156,6 @@ if search_email and sheet:
             if len(row_vals) > 21: defaults["video"] = row_vals[21]
             if len(row_vals) > 22: defaults["hobbies"] = row_vals[22]
             if len(row_vals) > 23: existing_pnm_id = row_vals[23]
-            # Column 25 (Z) is the transcript
             if len(row_vals) > 25: defaults["transcript"] = row_vals[25] 
         except ValueError:
             pass 
@@ -221,10 +229,8 @@ if submit_button:
             try:
                 timestamp = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
                 
-                # --- Video Transcription Logic ---
                 final_transcript = defaults["transcript"]
                 
-                # Only transcribe if a link is provided AND it's new/changed from the existing one
                 if video_link and video_link != defaults["video"]:
                     with st.spinner("Processing video... This might take a minute."):
                         try:
@@ -235,26 +241,23 @@ if submit_button:
                             st.warning(f"Could not automatically transcribe the video. Your form will still be submitted. Error: {e}")
                             final_transcript = "Transcription failed or link unsupported."
 
-                # Determine ID
                 if existing_pnm_id:
                     final_id = existing_pnm_id
                 else:
                     existing_data = sheet.get_all_values()
                     final_id = len(existing_data) if existing_data else 1
                 
-                # Prepare row data (Now extended to index 25 / Column Z)
                 row_data = [
                     timestamp, name, major, minor, hometown, year, search_email, 
                     hs_name, hs_gpa, college_gpa, honors, hs_involvement, college_involvement, 
                     res_hall, res_location, credits_completed, rushed_before, allergies, 
                     home_address, campus_address, hear_about, video_link, hobbies, 
                     final_id, 
-                    "",               # Index 24: Placeholder for Rank
-                    final_transcript  # Index 25: The new Whisper transcript
+                    "",               
+                    final_transcript  
                 ]
                 
                 if existing_row_index:
-                    # Update range A{row}:Z{row} (Extended to Z)
                     sheet.update(f"A{existing_row_index}:Z{existing_row_index}", [row_data])
                     st.success(f"✅ Information UPDATED for {name}! (PNM ID: {final_id})")
                 else:
