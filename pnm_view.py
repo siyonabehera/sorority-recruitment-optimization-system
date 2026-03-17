@@ -240,7 +240,7 @@ if submit_button:
         st.warning("Please ensure you use your @psu.edu email.")
     elif uploaded_video is None and not existing_row_index:
         # 🔴 NEW REQUIREMENT RULE: Blocks new submissions without a file upload
-        st.error("🚨 A video or audio file upload is required to submit your registration.")
+        st.error("An audio file upload is required to submit your registration.")
     else:
         if sheet:
             try:
