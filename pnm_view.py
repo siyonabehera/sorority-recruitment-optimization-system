@@ -243,16 +243,23 @@ if submit_button:
                 if uploaded_video is not None:
                     with st.spinner("Processing uploaded file... This might take a minute."):
                         try:
-                            # 1. Save uploaded file temporarily
-                            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(uploaded_video.name).suffix) as tmp:
-                                tmp.write(uploaded_video.getvalue())
-                                tmp_input_path = tmp.name
+                            # 1. Save uploaded file temporarily WITH explicit extension
+                            original_extension = Path(uploaded_video.name).suffix
                             
-                            # 2. Normalize audio with ffmpeg
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=original_extension) as tmp_in:
+                                tmp_in.write(uploaded_video.getvalue())
+                                tmp_input_path = tmp_in.name
+                            
+                            # 2. Normalize audio with ffmpeg to a dedicated output path
                             model = load_transcription_model()
-                            tmp_output_path = str(Path(tmp_input_path).with_suffix('.mp3'))
+                            
+                            # Create a separate temp file specifically for the output mp3
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=".mp3") as tmp_out:
+                                tmp_output_path = tmp_out.name
+
                             subprocess.run([
                                 "ffmpeg", "-y", "-i", tmp_input_path,
+                                "-vn", # Force drop video track
                                 "-ar", "16000", "-ac", "1", "-b:a", "96k", tmp_output_path
                             ], check=True, capture_output=True)
 
@@ -260,6 +267,14 @@ if submit_button:
                             result = model.transcribe(tmp_output_path, fp16=False, language="en")
                             final_transcript = result["text"].strip()
                             st.toast("✅ Uploaded file successfully transcribed!")
+                            
+                            # Optional: Clean up temp files to save disk space
+                            try:
+                                Path(tmp_input_path).unlink()
+                                Path(tmp_output_path).unlink()
+                            except Exception:
+                                pass
+
                         except Exception as e:
                             st.warning(f"Could not transcribe the uploaded file. Form will still submit. Error: {e}")
                             final_transcript = "Transcription failed."
