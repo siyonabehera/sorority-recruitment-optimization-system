@@ -24,21 +24,23 @@ def transcribe_video_url(url: str, model) -> str:
     with tempfile.TemporaryDirectory() as tmpdir:
         output_path = Path(tmpdir)
         outtmpl = str(output_path / "audio.%(ext)s")
-        
-        # --- CLEAN OAUTH2 CONFIGURATION ---
+
+        # --- CLEAN FALLBACK CONFIGURATION (NO OAUTH/COOKIES) ---
         ydl_opts = {
             "format": "m4a/bestaudio/best",
             "outtmpl": outtmpl,
             "noplaylist": True,
             "quiet": True,
             "source_address": "0.0.0.0",
-            
-            # Use OAuth2 authentication
-            "username": "oauth2", 
-            
-            # NOTE: extractor_args and http_headers have been DELETED!
-            # Let the OAuth2 plugin handle its own headers.
-
+            # Standard web client request to avoid OAuth mismatch errors
+            "extractor_args": {
+                "youtube": {
+                    "player_client": ["web"] 
+                }
+            },
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
+            },
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
@@ -46,7 +48,7 @@ def transcribe_video_url(url: str, model) -> str:
             }],
         }
         # -----------------------------
-        
+
         # 1. Download
         with YoutubeDL(ydl_opts) as ydl:
             ydl.extract_info(url, download=True)
@@ -212,11 +214,17 @@ with st.form(key='pnm_form'):
     col7, col8 = st.columns(2)
     with col7:
         hear_about = st.text_input("How did you hear about us?", value=defaults["hear_about"])
-        video_link = st.text_input("Enter your video link (YouTube preferred):", value=defaults["video"])
+        video_link = st.text_input("Enter your video link (YouTube):", value=defaults["video"])
+        
+        # --- NEW UPLOADER ---
+        st.info("Please upload your video link as an audio file directly (ex. mp4, mp3, mov, wav, m4a)")
+        uploaded_video = st.file_uploader("Upload Video/Audio:", type=['mp4', 'mov', 'mp3', 'wav', 'm4a'])
+        
     with col8:
         hobbies = st.text_area("Enter your hobbies and interests:", value=defaults["hobbies"])
 
     submit_button = st.form_submit_button(label='Submit Information')
+
 
 # --- Submission Logic ---
 if submit_button:
@@ -231,15 +239,41 @@ if submit_button:
                 
                 final_transcript = defaults["transcript"]
                 
-                if video_link and video_link != defaults["video"]:
-                    with st.spinner("Processing video... This might take a minute."):
+                # --- PROCESS DIRECT UPLOAD FIRST ---
+                if uploaded_video is not None:
+                    with st.spinner("Processing uploaded file... This might take a minute."):
+                        try:
+                            # 1. Save uploaded file temporarily
+                            with tempfile.NamedTemporaryFile(delete=False, suffix=Path(uploaded_video.name).suffix) as tmp:
+                                tmp.write(uploaded_video.getvalue())
+                                tmp_input_path = tmp.name
+                            
+                            # 2. Normalize audio with ffmpeg
+                            model = load_transcription_model()
+                            tmp_output_path = str(Path(tmp_input_path).with_suffix('.mp3'))
+                            subprocess.run([
+                                "ffmpeg", "-y", "-i", tmp_input_path,
+                                "-ar", "16000", "-ac", "1", "-b:a", "96k", tmp_output_path
+                            ], check=True, capture_output=True)
+
+                            # 3. Transcribe
+                            result = model.transcribe(tmp_output_path, fp16=False, language="en")
+                            final_transcript = result["text"].strip()
+                            st.toast("✅ Uploaded file successfully transcribed!")
+                        except Exception as e:
+                            st.warning(f"Could not transcribe the uploaded file. Form will still submit. Error: {e}")
+                            final_transcript = "Transcription failed."
+                
+                # --- FALLBACK TO YOUTUBE LINK ---
+                elif video_link and video_link != defaults["video"]:
+                    with st.spinner("Processing YouTube link..."):
                         try:
                             model = load_transcription_model()
                             final_transcript = transcribe_video_url(video_link, model)
-                            st.toast("✅ Video successfully transcribed!")
+                            st.toast("✅ YouTube video successfully transcribed!")
                         except Exception as e:
-                            st.warning(f"Could not automatically transcribe the video. Your form will still be submitted. Error: {e}")
-                            final_transcript = "Transcription failed or link unsupported."
+                            st.warning(f"YouTube blocked the download. Please ask the PNM to upload the file directly. Error: {e}")
+                            final_transcript = "Transcription failed due to YouTube bot blockers."
 
                 if existing_pnm_id:
                     final_id = existing_pnm_id
@@ -253,7 +287,7 @@ if submit_button:
                     res_hall, res_location, credits_completed, rushed_before, allergies, 
                     home_address, campus_address, hear_about, video_link, hobbies, 
                     final_id, 
-                    "",               
+                    "",                
                     final_transcript  
                 ]
                 
