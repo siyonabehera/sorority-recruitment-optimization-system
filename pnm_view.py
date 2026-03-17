@@ -224,7 +224,7 @@ with st.form(key='pnm_form'):
         
         # --- NEW UPLOADER ---
         st.info("Please upload your video link as an audio file directly (ex. mp4, mp3, mov, wav, m4a). **REQUIRED**")
-        uploaded_video = st.file_uploader("Upload Video/Audio:", type=['mp4', 'mov', 'mp3', 'wav', 'm4a'])
+        uploaded_video = st.file_uploader("Upload Audio:", type=['mp4', 'mov', 'mp3', 'wav', 'm4a'])
         
     with col8:
         hobbies = st.text_area("Enter your hobbies and interests:", value=defaults["hobbies"])
