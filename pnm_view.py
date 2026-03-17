@@ -24,25 +24,21 @@ def transcribe_video_url(url: str, model) -> str:
     with tempfile.TemporaryDirectory() as tmpdir:
         output_path = Path(tmpdir)
         outtmpl = str(output_path / "audio.%(ext)s")
-
-        # --- OAUTH2 AUTHENTICATION CONFIGURATION ---
+        
+        # --- CLEAN OAUTH2 CONFIGURATION ---
         ydl_opts = {
             "format": "m4a/bestaudio/best",
             "outtmpl": outtmpl,
             "noplaylist": True,
             "quiet": True,
             "source_address": "0.0.0.0",
-            # Enable the OAuth2 plugin for authentication
+            
+            # Use OAuth2 authentication
             "username": "oauth2", 
-            "extractor_args": {
-                "youtube": {
-                    "player_client": ["android", "ios", "tv", "web"],
-                    "player_skip": ["webpage", "configs"] 
-                }
-            },
-            "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
-            },
+            
+            # NOTE: extractor_args and http_headers have been DELETED!
+            # Let the OAuth2 plugin handle its own headers.
+
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
@@ -50,7 +46,7 @@ def transcribe_video_url(url: str, model) -> str:
             }],
         }
         # -----------------------------
-
+        
         # 1. Download
         with YoutubeDL(ydl_opts) as ydl:
             ydl.extract_info(url, download=True)
