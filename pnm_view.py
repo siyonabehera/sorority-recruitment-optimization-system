@@ -34,17 +34,23 @@ def transcribe_video_url(url: str, model) -> str:
             st.warning("No YouTube cookies found in secrets. Proceeding without them...")
             cookie_path = None
 
-        # --- ANTI-403 CONFIGURATION ---
+        # --- ANTI-403 NUCLEAR CONFIGURATION ---
         ydl_opts = {
-            "format": "bestaudio/best", 
+            "format": "m4a/bestaudio/best", # m4a is native to YT, less likely to trigger extraction errors
             "outtmpl": outtmpl,
             "noplaylist": True,
             "quiet": True,
-            "source_address": "0.0.0.0",
-            # REMOVED the extractor_args that spoofed android/ios to avoid cookie mismatch
-            # Changed User-Agent to match a standard modern browser
+            # Skip IPv4 forcing unless strictly necessary, let yt-dlp negotiate
+            "extractor_args": {
+                "youtube": {
+                    # Stack clients: YT will try them in order until one passes the bot check
+                    "player_client": ["android", "ios", "tv", "web"],
+                    # CRITICAL: Skip fetching the webpage/configs which triggers the 403 bot-trap
+                    "player_skip": ["webpage", "configs"] 
+                }
+            },
             "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/124.0.0.0 Safari/537.36"
             },
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
@@ -56,7 +62,7 @@ def transcribe_video_url(url: str, model) -> str:
         # Add the cookie file to options if it was successfully created
         if cookie_path:
             ydl_opts["cookiefile"] = cookie_path
-        # ------------------------------
+        # -----------------------------
 
         # 1. Download
         with YoutubeDL(ydl_opts) as ydl:
