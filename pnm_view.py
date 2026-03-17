@@ -36,7 +36,12 @@ def transcribe_video_url(url: str, model) -> str:
             "quiet": True,
             "source_address": "0.0.0.0", # Force IPv4 (YouTube blocks server IPv6 ranges)
             "extractor_args": {
-                "youtube": {"player_client": ["default"]} 
+                # Force yt-dlp to use mobile clients which have fewer bot restrictions
+                "youtube": {"player_client": ["android", "ios", "web"]} 
+            },
+            # Optional but helpful: add a standard User-Agent header
+            "http_headers": {
+                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             },
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
