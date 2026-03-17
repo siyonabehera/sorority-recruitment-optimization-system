@@ -25,27 +25,26 @@ def transcribe_video_url(url: str, model) -> str:
         output_path = Path(tmpdir)
         outtmpl = str(output_path / "audio.%(ext)s")
 
+        # --- ANTI-403 CONFIGURATION ---
         ydl_opts = {
-            "format": "bestaudio/best",
+            # 'bestaudio' often triggers 403s on servers. 
+            # '18/best' forces a basic 360p mp4 download (which rarely gets blocked) 
+            # and we let ffmpeg extract the audio locally instead.
+            "format": "18/best", 
             "outtmpl": outtmpl,
             "noplaylist": True,
-            "quiet": True, # Suppress yt-dlp console output
-            
-            # --- NEW: BYPASS YOUTUBE 403 FORBIDDEN ---
+            "quiet": True,
+            "source_address": "0.0.0.0", # Force IPv4 (YouTube blocks server IPv6 ranges)
             "extractor_args": {
-                "youtube": {"player_client": ["android", "web"]}
+                "youtube": {"player_client": ["default"]} 
             },
-            "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
-            },
-            # ----------------------------------------
-            
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
                 "preferredcodec": "mp3",
                 "preferredquality": "192",
             }],
         }
+        # ------------------------------
 
         # 1. Download
         with YoutubeDL(ydl_opts) as ydl:
