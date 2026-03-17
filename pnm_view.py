@@ -24,22 +24,26 @@ def transcribe_video_url(url: str, model) -> str:
     with tempfile.TemporaryDirectory() as tmpdir:
         output_path = Path(tmpdir)
         outtmpl = str(output_path / "audio.%(ext)s")
+        cookie_path = str(output_path / "cookies.txt")
+
+        # --- Write Cookies from Secrets to Temp File ---
+        try:
+            with open(cookie_path, "w") as f:
+                f.write(st.secrets["youtube"]["cookies"])
+        except Exception as e:
+            st.warning("No YouTube cookies found in secrets. Proceeding without them...")
+            cookie_path = None
 
         # --- ANTI-403 CONFIGURATION ---
         ydl_opts = {
-            # 'bestaudio' often triggers 403s on servers. 
-            # '18/best' forces a basic 360p mp4 download (which rarely gets blocked) 
-            # and we let ffmpeg extract the audio locally instead.
             "format": "18/best", 
             "outtmpl": outtmpl,
             "noplaylist": True,
             "quiet": True,
-            "source_address": "0.0.0.0", # Force IPv4 (YouTube blocks server IPv6 ranges)
+            "source_address": "0.0.0.0",
             "extractor_args": {
-                # Force yt-dlp to use mobile clients which have fewer bot restrictions
                 "youtube": {"player_client": ["android", "ios", "web"]} 
             },
-            # Optional but helpful: add a standard User-Agent header
             "http_headers": {
                 "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
             },
@@ -49,6 +53,10 @@ def transcribe_video_url(url: str, model) -> str:
                 "preferredquality": "192",
             }],
         }
+        
+        # Add the cookie file to options if it was successfully created
+        if cookie_path:
+            ydl_opts["cookiefile"] = cookie_path
         # ------------------------------
 
         # 1. Download
