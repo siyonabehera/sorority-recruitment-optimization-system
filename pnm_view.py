@@ -16,13 +16,8 @@ st.set_page_config(page_title="PNM Recruitment Form", layout="wide")
 @st.cache_resource
 def load_transcription_model():
     """Cache the whisper model so it doesn't reload on every run."""
-    try:
-        # Attempt to load the high-speed, high-accuracy 'turbo' model
-        return whisper.load_model("turbo")
-    except Exception as e:
-        # FAILSAFE: If the server lacks RAM or the package is old, fall back to base
-        print(f"Could not load Turbo model, falling back to Base. Error: {e}")
-        return whisper.load_model("base")
+    # Explicitly using the 'base' model for high stability and low RAM usage
+    return whisper.load_model("base")
 
 # --- Audio/Video Processing Functions ---
 def transcribe_video_url(url: str, model) -> str:
