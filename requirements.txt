@@ -8,3 +8,5 @@ xlsxwriter
 openpyxl
 gspread
 whisper
+yt-dlp
+openai-whisper
