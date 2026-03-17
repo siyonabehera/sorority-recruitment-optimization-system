@@ -8,5 +8,5 @@ xlsxwriter
 openpyxl
 gspread
 whisper
-yt-dlp
+yt-dlp>=2024.03.10
 openai-whisper
