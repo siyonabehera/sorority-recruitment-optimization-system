@@ -36,18 +36,15 @@ def transcribe_video_url(url: str, model) -> str:
 
         # --- ANTI-403 CONFIGURATION ---
         ydl_opts = {
-            # 🔴 CHANGE THIS LINE: "bestaudio/best" guarantees it will find a track 
-            # no matter what formats the specific video has available.
             "format": "bestaudio/best", 
             "outtmpl": outtmpl,
             "noplaylist": True,
             "quiet": True,
             "source_address": "0.0.0.0",
-            "extractor_args": {
-                "youtube": {"player_client": ["android", "ios", "web"]} 
-            },
+            # REMOVED the extractor_args that spoofed android/ios to avoid cookie mismatch
+            # Changed User-Agent to match a standard modern browser
             "http_headers": {
-                "User-Agent": "Mozilla/5.0 (Windows NT 10.0; Win64; x64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/120.0.0.0 Safari/537.36"
+                "User-Agent": "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/122.0.0.0 Safari/537.36"
             },
             "postprocessors": [{
                 "key": "FFmpegExtractAudio",
