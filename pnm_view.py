@@ -250,7 +250,7 @@ if submit_button:
                 
                 # --- PROCESS DIRECT UPLOAD FIRST ---
                 if uploaded_video is not None:
-                    with st.spinner("Processing submission... This might take a minute."):
+                    with st.spinner("Processing submission."):
                         try:
                             # 1. Save uploaded file temporarily WITH explicit extension
                             original_extension = Path(uploaded_video.name).suffix
