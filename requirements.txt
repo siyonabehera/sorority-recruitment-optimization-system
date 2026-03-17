@@ -10,3 +10,4 @@ gspread
 whisper
 yt-dlp>=2024.03.10
 openai-whisper
+yt-dlp-youtube-oauth2
