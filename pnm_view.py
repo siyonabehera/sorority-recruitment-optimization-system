@@ -76,7 +76,6 @@ st.markdown("""
     }
 
     /* --- CRITICAL FIX: DISABLED/AUTOFILLED INPUT FIELDS --- */
-    /* 1. Target the actual input elements for text fields (like the Email box) */
     input:disabled, 
     input[disabled], 
     textarea:disabled, 
@@ -86,7 +85,6 @@ st.markdown("""
         opacity: 1 !important;
     }
 
-    /* 2. Target Streamlit's wrapper elements for disabled fields (like the Year dropdown) */
     div[aria-disabled="true"], 
     div[aria-disabled="true"] span, 
     div[aria-disabled="true"] input {
@@ -95,25 +93,30 @@ st.markdown("""
         opacity: 1 !important;
     }
 
-    /* 3. Ensure the background of disabled fields stays light blue, overriding Streamlit's default gray */
     div[aria-disabled="true"] > div,
     div[aria-disabled="true"] {
         background-color: #E6F0FA !important; 
     }
     /* ------------------------------------------------------- */
 
-    /* --- DROPDOWN MENU (POPOVER) STYLING --- */
-    div[data-baseweb="popover"] ul {
+    /* --- NEW FIX: DROPDOWN MENU OPTIONS --- */
+    /* Target the floating listbox and its options directly by their ARIA roles */
+    ul[role="listbox"] {
         background-color: #E6F0FA !important; 
     }
     
-    div[data-baseweb="popover"] ul li, 
-    div[data-baseweb="popover"] ul li span {
+    /* Target the individual options inside the dropdown */
+    li[role="option"], 
+    li[role="option"] span {
         color: #041E42 !important; 
+        background-color: transparent !important;
     }
     
-    div[data-baseweb="popover"] ul li:hover {
+    /* Hover effect so users can see what they are selecting */
+    li[role="option"]:hover, 
+    li[role="option"][aria-selected="true"] {
         background-color: #FFFFFF !important; 
+        color: #041E42 !important; 
     }
     /* ------------------------------------- */
 
