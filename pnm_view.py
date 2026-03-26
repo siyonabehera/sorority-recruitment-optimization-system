@@ -220,7 +220,7 @@ with st.form(key='pnm_form'):
         # --- NEW UPLOADER ---
         st.info("""Please upload your video link as an audio file directly (ex. mp4, mp3, mov, wav, m4a).
 
-Feel free to use these free sites to convert your files:
+Feel free to use these free sites to convert your link:
 * [MP3Cow](https://mp3cow.com/)
 * [YouTube MP3 Free](https://youtubemp3free.com/en/)""")
         
