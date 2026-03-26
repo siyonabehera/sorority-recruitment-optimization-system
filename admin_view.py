@@ -20,6 +20,178 @@ from google import genai
 from google.genai import types
 import json
 
+# Injecting Custom Purple/Violet CSS Theme (All White Text)
+st.markdown("""
+<style>
+    /* Main background changed to Deep Violet */
+    .stApp {
+        background-color: #1A0B2E; 
+    }
+    
+    /* Force standard text, list items, and input labels to be white */
+    .stApp p, .stApp label, .stApp li, .stApp div[data-testid="stMarkdownContainer"] {
+        color: #FFFFFF !important;
+    }
+
+    /* Ensure links are white to match the prompt and bolded for visibility */
+    .stApp a {
+        color: #FFFFFF !important; 
+        text-decoration: underline !important;
+        font-weight: bold;
+    }
+    
+    /* --- HEADER FIX --- */
+    header[data-testid="stHeader"] {
+        background-color: #1A0B2E !important; 
+    }
+    
+    /* Force header icons and text to be white */
+    header[data-testid="stHeader"] *, 
+    header[data-testid="stHeader"] button,
+    header[data-testid="stHeader"] span,
+    header[data-testid="stHeader"] a {
+        color: #FFFFFF !important;
+    }
+    /* ------------------------------------- */
+
+    /* Make headers White */
+    h1, h2, h3, h4, h5, h6 {
+        color: #FFFFFF !important;
+    }
+    
+    /* --- INPUT FIELD STYLING --- */
+    /* Target text inputs, text areas, number inputs, and select boxes */
+    div[data-baseweb="input"] > div, 
+    div[data-baseweb="textarea"] > div,
+    div[data-baseweb="select"] > div {
+        background-color: #2B134D !important; /* Mid-dark purple container */
+        border: 1px solid #472183 !important; /* Accent purple border */
+        border-radius: 6px;
+    }
+    
+    /* Ensure text TYPED inside the boxes is white */
+    div[data-baseweb="input"] input, 
+    div[data-baseweb="textarea"] textarea,
+    div[data-baseweb="select"] span {
+        color: #FFFFFF !important; 
+        font-weight: 500;
+    }
+
+    /* Change border color to solid white when user clicks to type */
+    div[data-baseweb="input"] > div:focus-within,
+    div[data-baseweb="textarea"] > div:focus-within {
+        border: 2px solid #FFFFFF !important; 
+    }
+
+    /* --- CRITICAL FIX: DISABLED/AUTOFILLED INPUT FIELDS --- */
+    input:disabled, 
+    input[disabled], 
+    textarea:disabled, 
+    textarea[disabled] {
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        opacity: 0.7 !important;
+    }
+
+    div[aria-disabled="true"], 
+    div[aria-disabled="true"] span, 
+    div[aria-disabled="true"] input {
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        opacity: 0.7 !important;
+    }
+
+    div[aria-disabled="true"] > div,
+    div[aria-disabled="true"] {
+        background-color: #2B134D !important; 
+    }
+    /* ------------------------------------------------------- */
+
+    /* --- NEW FIX: DROPDOWN MENU OPTIONS --- */
+    /* Target the floating listbox and its options directly by their ARIA roles */
+    ul[role="listbox"] {
+        background-color: #2B134D !important; 
+    }
+    
+    /* Target the individual options inside the dropdown */
+    li[role="option"], 
+    li[role="option"] span {
+        color: #FFFFFF !important; 
+        background-color: transparent !important;
+    }
+    
+    /* Hover effect so users can see what they are selecting */
+    li[role="option"]:hover, 
+    li[role="option"][aria-selected="true"] {
+        background-color: #472183 !important; 
+        color: #FFFFFF !important; 
+    }
+    /* ------------------------------------- */
+
+    /* --- BUTTON STYLING --- */
+    .stButton>button {
+        background-color: #472183; /* Accent purple */
+        color: #FFFFFF !important;
+        border-radius: 6px;
+        border: 2px solid #FFFFFF; 
+        padding: 10px 24px;
+        font-weight: bold;
+    }
+    
+    .stButton>button p, .stButton>button span {
+        color: #FFFFFF !important; 
+    }
+    
+    .stButton>button:hover, .stButton>button:focus {
+        background-color: #2B134D;
+        border: 2px solid #FFFFFF;
+        box-shadow: 0px 4px 6px rgba(255,255,255,0.2); 
+        transform: translateY(-1px); 
+    }
+    
+    /* --- ALERT BOXES (Success, Error, Info, Warning) --- */
+    div[data-testid="stAlert"] {
+        background-color: #2B134D !important; 
+        border: 1px solid #472183 !important;
+        border-left: 6px solid #FFFFFF !important; 
+        border-radius: 6px;
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.2); 
+    }
+    
+    div[data-testid="stAlert"] p, div[data-testid="stAlert"] span {
+        color: #FFFFFF !important; 
+        font-weight: 600; 
+    }
+
+    /* --- TOAST POP-UPS (Bottom right notifications) --- */
+    div[data-testid="stToast"] {
+        background-color: #2B134D !important;
+        border: 2px solid #472183 !important;
+        border-radius: 8px;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
+    }
+    
+    div[data-testid="stToast"] p, div[data-testid="stToast"] span {
+        color: #FFFFFF !important; 
+    }
+
+    /* --- FORM CONTAINER --- */
+    div[data-testid="stForm"] {
+        background-color: #2B134D;
+        border: 1px solid #472183; 
+        border-radius: 8px; 
+        padding: 20px; 
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
+    }
+    
+    /* --- HIDE DEFAULT STREAMLIT FOOTER --- */
+    footer {
+        visibility: hidden;
+    }
+</style>
+""", unsafe_allow_html=True)
+
+
 
 # --- CONFIGURATION ---
 SHEET_NAME = "OverallMatchingInformation"
