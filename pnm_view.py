@@ -44,13 +44,36 @@ st.markdown("""
     header[data-testid="stHeader"] a {
         color: #FFFFFF !important;
     }
-    /* ------------------------------------- */
 
     /* Make headers White */
     h1, h2, h3, h4, h5, h6 {
         color: #FFFFFF !important;
     }
     
+    /* --- INPUT FIELD STYLING --- */
+    /* Target text inputs, text areas, number inputs, and select boxes */
+    div[data-baseweb="input"] > div, 
+    div[data-baseweb="textarea"] > div,
+    div[data-baseweb="select"] > div {
+        background-color: #E6F0FA !important; /* Soft light blue background */
+        border: 1px solid #1E407C !important; /* Mid-blue border */
+        border-radius: 6px;
+    }
+    
+    /* Ensure text TYPED inside the boxes is dark navy for readability */
+    div[data-baseweb="input"] input, 
+    div[data-baseweb="textarea"] textarea,
+    div[data-baseweb="select"] span {
+        color: #041E42 !important; 
+        font-weight: 500;
+    }
+    /* Change border color slightly when user clicks to type */
+    div[data-baseweb="input"] > div:focus-within,
+    div[data-baseweb="textarea"] > div:focus-within {
+        border: 2px solid #041E42 !important; 
+    }
+    /* ------------------------------------- */
+
     /* --- BUTTON STYLING --- */
     /* Inverting button to be white with navy text */
     .stButton>button {
@@ -78,18 +101,17 @@ st.markdown("""
     div[data-testid="stAlert"] {
         background-color: #FFFFFF !important; 
         border: 1px solid #FFFFFF !important;
-        border-left: 6px solid #1E407C !important; /* Lighter blue accent */
+        border-left: 6px solid #1E407C !important; 
         border-radius: 6px;
         box-shadow: 0px 2px 5px rgba(0,0,0,0.2); 
     }
     
     div[data-testid="stAlert"] p, div[data-testid="stAlert"] span {
-        color: #041E42 !important; /* Navy text inside the white alert */
+        color: #041E42 !important; 
         font-weight: 600; 
     }
 
     /* --- TOAST POP-UPS (Bottom right notifications) --- */
-    /* Toasts become light blue to contrast the dark background */
     div[data-testid="stToast"] {
         background-color: #E6F0FA !important;
         border: 2px solid #041E42 !important;
@@ -102,7 +124,6 @@ st.markdown("""
     }
 
     /* --- FORM CONTAINER --- */
-    /* Form background slightly lighter navy to separate from main background */
     div[data-testid="stForm"] {
         background-color: #112A4F;
         border: 1px solid #1E407C; 
