@@ -951,3 +951,44 @@ else:
                             
                     except Exception as e:
                         status_container.error(f"Error writing to Google Sheets: {e}")
+
+
+        # ==========================================
+        # BUTTON 2: RUN MATCHING ALGORITHM
+        # ==========================================
+        if run_button:
+            if not party_assignment_file:
+                st.error("❌ Please upload the PNM Party Assignments CSV to proceed.")
+            else:
+                with st.spinner("Saving Party Visibility Settings..."):
+                    update_visible_parties(selected_parties_to_show)
+
+                with st.spinner("Clearing previous matching results..."):
+                    delete_old_matching_sheets()
+                
+                with st.spinner("Loading preprocessed attributes and processing matches..."):
+                    bump_teams, party_excuses, pnm_intial_interest, member_interest, member_pnm_no_match = load_google_sheet_data(SHEET_NAME)
+                    if any(df is None for df in [bump_teams, party_excuses, pnm_intial_interest, member_interest, member_pnm_no_match]): st.stop()
+                    for df in [bump_teams, party_excuses, pnm_intial_interest, member_interest, member_pnm_no_match]: df.columns = df.columns.str.strip()
+                    
+                    # Verify Preprocessing was run
+                    if 'attributes_for_matching' not in member_interest.columns or 'attributes_for_matching' not in pnm_intial_interest.columns:
+                        st.error("❌ 'attributes_for_matching' column not found! Please run 'Preprocess Attributes' first.")
+                        st.stop()
+
+                    try:
+                        assignments_df = pd.read_csv(party_assignment_file)
+                        assignments_df.columns = assignments_df.columns.str.strip()
+                        required_assignment_cols = ['PNM ID', 'Party']
+                        if not all(col in assignments_df.columns for col in required_assignment_cols):
+                            st.error(f"Uploaded CSV must contain columns: {required_assignment_cols}. Found: {list(assignments_df.columns)}")
+                            st.stop()
+                        pnm_intial_interest['PNM ID'] = pnm_intial_interest['PNM ID'].astype(str).str.strip()
+                        assignments_df['PNM ID'] = assignments_df['PNM ID'].astype(str).str.strip()
+                        pnm_intial_interest = pnm_intial_interest.merge(assignments_df[['PNM ID', 'Party']], on='PNM ID', how='inner')
+                        if pnm_intial_interest.empty:
+                            st.error("No matches found between the uploaded PNM Assignments and the PNM Information database. Check your PNM IDs.")
+                            st.stop()
+                        pnm_intial_interest['Party'] = pd.to_numeric(pnm_intial_interest['Party'], errors='coerce').fillna(0).astype(int)
+                    except Exception as e:
+                        st.error(f"Error reading or processing the Party Assignments CSV: {e}"); st.stop()
