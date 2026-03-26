@@ -702,6 +702,8 @@ else:
         bump_order_set = st.radio("Is Bump Order Set?", ("Yes", "No"), horizontal=True)
         is_bump_order_set = "y" if bump_order_set == "Yes" else "n"
         st.divider()
+        preprocess_button = st.button("1. Preprocess Attributes", type="secondary", use_container_width=True)
+        st.divider()
         st.subheader("Upload PNM Party Assignments")
         party_assignment_file = st.file_uploader("Upload CSV containing 'PNM ID', 'PNM Name', and 'Party'", type=["csv"])
         if party_assignment_file:
@@ -712,13 +714,8 @@ else:
                     st.write(f"**Rows found:** {len(df_preview)}")
                     st.dataframe(df_preview.head(), use_container_width=True)
             except Exception as e: st.error(f"Error generating preview: {e}")
-
-        # --- THE TWO BUTTONS ---
-        col_btn1, col_btn2 = st.columns(2)
-        with col_btn1:
-            preprocess_button = st.button("1. Preprocess Attributes", type="secondary", use_container_width=True)
-        with col_btn2:
-            run_button = st.button("2. Run Matching Algorithm", type="primary", use_container_width=True)
+        
+        run_button = st.button("2. Run Matching Algorithm", type="primary", use_container_width=True)
 
         # ==========================================
         # BUTTON 1: PREPROCESS ATTRIBUTES
