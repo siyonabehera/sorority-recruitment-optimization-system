@@ -18,6 +18,7 @@ from gspread.exceptions import APIError, WorksheetNotFound
 from google.oauth2.service_account import Credentials
 from google import genai
 from google.genai import types
+import json
 
 
 # --- CONFIGURATION ---
