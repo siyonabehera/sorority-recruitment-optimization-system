@@ -37,22 +37,13 @@ st.markdown("""
         background-color: #E6F0FA !important; 
     }
     
-    /* Make all standard text dark blue */
-    header[data-testid="stHeader"] * {
-        color: #041E42 !important;
-    }
-
-    /* Remove the weird box borders from the SVG containers */
+    /* Let Streamlit's native 'currentColor' logic do the work safely.
+       This will color the text AND the icons without breaking the SVG shapes. */
+    header[data-testid="stHeader"] button,
+    header[data-testid="stHeader"] span,
+    header[data-testid="stHeader"] a,
     header[data-testid="stHeader"] svg {
-        fill: transparent !important;
-        stroke: none !important; 
-    }
-
-    /* Fill the actual icon shapes (Star, Pencil, GitHub, Menu dots) with dark blue */
-    header[data-testid="stHeader"] svg path,
-    header[data-testid="stHeader"] svg circle {
-        fill: #041E42 !important;
-        stroke: none !important;
+        color: #041E42 !important;
     }
     /* ------------------------------------- */
 
