@@ -643,7 +643,7 @@ with tab3:
 # ==========================
 with tab4:
     st.header("PNM Roster & Information")
-    if st.button("🔄 Refresh PNM List"):
+    if st.button("Refresh PNM List"):
         st.cache_data.clear()
         st.rerun()
 
@@ -656,7 +656,7 @@ with tab4:
 
         # Download
         csv = df_pnm.to_csv(index=False).encode('utf-8')
-        st.download_button("📥 Download CSV", csv, "pnm_info.csv", "text/csv")
+        st.download_button("Download CSV", csv, "pnm_info.csv", "text/csv")
         st.divider()
 
         # Identify Key Columns
@@ -680,7 +680,7 @@ with tab4:
         selected_view = st.selectbox("Select PNM:", pnm_options)
 
         if selected_view == "View All PNMs":
-            search = st.text_input("🔍 Search:", key="pnm_search")
+            search = st.text_input("Search:", key="pnm_search")
             if search:
                 mask = df_pnm.astype(str).apply(lambda x: x.str.contains(search, case=False)).any(axis=1)
                 st.dataframe(df_pnm[mask], use_container_width=True)
@@ -912,7 +912,7 @@ with tab6:
         # Retrieve the actual sheet name to load data
         actual_sheet_name = sheet_map[selected_display_name]
         
-        if st.button("🔄 Refresh Matches"):
+        if st.button("Refresh Matches"):
             st.cache_data.clear()
             st.rerun()
         
@@ -934,7 +934,7 @@ with tab6:
                     st.write("---")
                     col_s1, col_s2 = st.columns([2,1])
                     with col_s1:
-                        search_query = st.text_input("🔍 Filter by Name (You or PNM):", key="match_search")
+                        search_query = st.text_input("Filter by Name (You or PNM):", key="match_search")
                     
                     if not df_matches.empty:
                         if search_query:
