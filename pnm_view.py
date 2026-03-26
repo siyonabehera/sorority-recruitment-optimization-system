@@ -218,10 +218,7 @@ with st.form(key='pnm_form'):
         video_link = st.text_input("Enter your video link (YouTube):", value=defaults["video"])
         
         # --- NEW UPLOADER ---
-        st.info("Please upload your video link as an audio file directly (ex. mp4, mp3, mov, wav, m4a).")
-        st.info("Feel free to use these free sites:")
-        st.info("https://mp3cow.com/")
-        st.info("https://youtubemp3free.com/en/")
+        st.info("Please upload your video link as an audio file directly (ex. mp4, mp3, mov, wav, m4a). \n Feel free to use these free sites:\n https://mp3cow.com/ \n https://youtubemp3free.com/en/")
         uploaded_video = st.file_uploader("Upload Audio:", type=['mp4', 'mov', 'mp3', 'wav', 'm4a'])
         
     with col8:
