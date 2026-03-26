@@ -992,3 +992,546 @@ else:
                         pnm_intial_interest['Party'] = pd.to_numeric(pnm_intial_interest['Party'], errors='coerce').fillna(0).astype(int)
                     except Exception as e:
                         st.error(f"Error reading or processing the Party Assignments CSV: {e}"); st.stop()
+
+                    try:
+                        all_ranks = pd.to_numeric(pnm_intial_interest['Average Recruit Rank'], errors='coerce')
+                        min_obs = all_ranks.min()
+                        if pd.isna(min_obs): min_obs = 1.0
+                        all_ranks = all_ranks.fillna(min_obs)
+                        global_max = all_ranks.max()
+                        global_min = all_ranks.min()
+                        if global_max == global_min: global_max += 1.0 
+                        
+                        all_team_ranks = pd.to_numeric(bump_teams['Ranking'], errors='coerce')
+                        min_t_obs = all_team_ranks.min()
+                        if pd.isna(min_t_obs): min_t_obs = 1.0
+                        all_team_ranks = all_team_ranks.fillna(4.0)
+                        t_global_max = all_team_ranks.max()
+                        t_global_min = all_team_ranks.min()
+                        if t_global_max == t_global_min: t_global_max += 1.0
+                    except Exception as e:
+                        st.error(f"Error calculating global ranking stats: {e}")
+                        global_max, global_min = 5.0, 1.0 
+                        t_global_max, t_global_min = 4.0, 1.0
+
+                    zip_buffer = BytesIO()
+                    party_excuses["Choose the party/parties you are unable to attend:"] = party_excuses["Choose the party/parties you are unable to attend:"].apply(
+                        lambda x: [int(i) for i in re.findall(r'\d+', str(x))] if pd.notnull(x) else []
+                    )
+                    party_excuses = party_excuses.explode("Choose the party/parties you are unable to attend:")
+                    member_pnm_no_match["PNM Name"] = member_pnm_no_match["PNM Name"].str.split(r',\s*', regex=True)
+                    member_pnm_no_match = member_pnm_no_match.explode("PNM Name")
+                    no_match_pairs = { (row["Member Name"], row["PNM Name"]) for row in member_pnm_no_match.to_dict('records') }
+                    member_attr_cache = {
+                        row['Sorority ID']: set(str(row.get('attributes_for_matching', '')).split(', '))
+                        if row.get('attributes_for_matching') else set()
+                        for row in member_interest.to_dict('records')
+                    }
+                    name_to_id_map = member_interest.set_index('Full Name')['Sorority ID'].to_dict()
+                    all_member_traits = member_interest['attributes_for_matching'].str.split(', ').explode()
+                    trait_freq = all_member_traits.value_counts()
+                    trait_weights = (len(member_interest) / trait_freq).to_dict()
+                    
+                    def to_float(val, default=1.0):
+                        try: return float(val)
+                        except: return default
+                    def to_int(val, default=4):
+                        try: return int(val)
+                        except: return default
+
+                    individual_party_files = []
+                    preview_results = {} 
+
+                    with zipfile.ZipFile(zip_buffer, "w", zipfile.ZIP_DEFLATED) as zf:
+                        for party in range(1, int(num_parties) + 1):
+                            pnms_df = pnm_intial_interest[pnm_intial_interest['Party'] == party].copy()
+                            if pnms_df.empty: continue
+                            pnm_list = []
+                            pnm_records = pnms_df.to_dict('records')
+                            for i, row in enumerate(pnm_records):
+                                p_attrs = set(str(row['attributes_for_matching']).split(', '))
+                                p_rank_val = to_float(row.get("Average Recruit Rank", 1.0))
+                                safe_rank = max(global_min, min(p_rank_val, global_max))
+                                relative_strength = (safe_rank - global_min) / (global_max - global_min)
+                                RANKING_WEIGHT = 3.0 
+                                pnm_bonus = relative_strength * RANKING_WEIGHT
+                                pnm_list.append({
+                                    'idx': i, 'id': row['PNM ID'], 'name': row.get('PNM Name', row.get('Full Name')),
+                                    'attrs': p_attrs, 'rank': p_rank_val, 'bonus': pnm_bonus, 'node_id': f"p_{i}"
+                                })
+                            party_excused_names = set(party_excuses[party_excuses["Choose the party/parties you are unable to attend:"] == party]["Member Name"])
+                            team_list = []
+                            broken_teams_list = []
+                            for raw_idx, row in enumerate(bump_teams.to_dict('records')):
+                                submitter = row["Creator Name"]
+                                partners_str = str(row.get("Bump Partners", ""))
+                                if partners_str.lower() == 'nan': partners = []
+                                else: partners = [p.strip() for p in re.split(r'[,;]\s*', partners_str) if p.strip()]
+                                current_members = [submitter] + partners
+                                missing_members = [m for m in current_members if m in party_excused_names]
+                                t_id = str(row.get("Team ID", row.get("ID", "Unknown"))) 
+                                if missing_members:
+                                    broken_teams_list.append({
+                                        'id': t_id,
+                                        'members': current_members, 
+                                        'missing': missing_members
+                                    })
+                                else:
+                                    t_rank_val = to_float(row.get("Ranking", t_global_max))
+                                    safe_t_rank = max(t_global_min, min(t_rank_val, t_global_max))
+                                    team_rel_strength = (t_global_max - safe_t_rank) / (t_global_max - t_global_min)
+                                    TEAM_WEIGHT = 1.5 
+                                    t_bonus = team_rel_strength * TEAM_WEIGHT
+                                    team_list.append({
+                                        't_idx': len(team_list), 'members': current_members, 'team_size': len(current_members),
+                                        'member_ids': [name_to_id_map.get(m) for m in current_members],
+                                        'joined_names': ", ".join(current_members), 'bonus': t_bonus,
+                                        'node_id': f"t_{len(team_list)}", 'row_data': row
+                                    })
+                            total_capacity = len(team_list) * matches_per_team
+                            if len(pnm_list) > total_capacity:
+                                warning_msg = (f"**Party {party} Warning**: Not enough capacity! {len(pnm_list)} PNMs vs {total_capacity} Slots.\n\n")
+                                if broken_teams_list:
+                                    warning_msg += f"- **Excused Teams:** {len(broken_teams_list)} team(s) removed.\n\n"
+                                    for item in broken_teams_list:
+                                        all_mems = ", ".join(item['members'])
+                                        missing_mems = ", ".join(item['missing'])
+                                        warning_msg += f"  • **Team {item['id']}** (Members: {all_mems}) removed.\n"
+                                        warning_msg += f"    *Reason:* **{missing_mems}** is excused from this party.\n"
+                                else: 
+                                    warning_msg += "No teams were removed due to excuses for this party.\n"
+
+                                warning_msg += "\n"
+                                
+                                # --- MODIFIED: Detailed Conflict Reporting (With IDs) ---
+                                pnm_name_to_id = {p['name']: p['id'] for p in pnm_list}
+                                member_name_to_id = {}
+                                active_team_members = set()
+                                for t in team_list: 
+                                    active_team_members.update(t['members'])
+                                    for m_name, m_id in zip(t['members'], t['member_ids']):
+                                        if m_name and m_id:
+                                            member_name_to_id[m_name] = m_id
+
+                                pnm_names_in_party = set(pnm_name_to_id.keys())
+                                relevant_conflicts = []
+                                
+                                for (m_name, p_name) in no_match_pairs:
+                                    if p_name in pnm_names_in_party and m_name in active_team_members:
+                                        m_id = member_name_to_id.get(m_name, "Unknown ID")
+                                        p_id = pnm_name_to_id.get(p_name, "Unknown ID")
+                                        relevant_conflicts.append(f"Member **{m_name}** (ID: {m_id}) & PNM **{p_name}** (ID: {p_id})")
+                                
+                                if relevant_conflicts:
+                                    warning_msg += f"- **Active No-Match Constraints:** {len(relevant_conflicts)} pair(s) found.\n\n"
+                                    for conflict in relevant_conflicts:
+                                        warning_msg += f"  • {conflict}\n"
+                                else: 
+                                    warning_msg += "No conflicts found between present PNMs and Members.\n"
+                                # ---------------------------------------------------------
+                                
+                                st.warning(warning_msg)
+
+                            potential_pairs = []
+                            for p_data in pnm_list:
+                                for t_data in team_list:
+                                    if any((m, p_data['name']) in no_match_pairs for m in t_data['members']): continue
+                                    score = 0
+                                    reasons_list = []
+                                    for m_id, m_name in zip(t_data['member_ids'], t_data['members']):
+                                        if m_id is None: continue
+                                        m_attrs = member_attr_cache.get(m_id, set())
+                                        shared = p_data['attrs'].intersection(m_attrs)
+                                        if shared:
+                                            score += sum(trait_weights.get(t, 1.0) for t in shared)
+                                            reasons_list.append(f"{p_data['name']} has {', '.join(shared)} with {m_name}.")
+                                    total_score = score + t_data['bonus'] + p_data['bonus']
+                                    final_cost = 1 / (1 + total_score)
+                                    potential_pairs.append({
+                                        'p_id': p_data['id'], 'p_name': p_data['name'], 'p_attrs': p_data['attrs'],
+                                        't_idx': t_data['t_idx'], 'team_size': t_data['team_size'],
+                                        'p_node': p_data['node_id'], 't_node': t_data['node_id'],
+                                        'cost': final_cost, 'pnm_rank': p_data['rank'],
+                                        'team_members': t_data['joined_names'],
+                                        'reasons': " ".join(reasons_list) if reasons_list else "No specific match"
+                                    })
+                            potential_pairs.sort(key=lambda x: (x['cost'], -x['pnm_rank']))
+                            matchable_pnm_ids = {p['p_id'] for p in potential_pairs}
+
+                            global_flow_results = []
+                            assignments_map_flow = {t['t_idx']: [] for t in team_list}
+                            G = nx.DiGraph()
+                            source, sink, no_match_node = 'source', 'sink', 'dummy_nomatch'
+                            total_flow = len(pnm_list)
+                            G.add_node(source, demand=-total_flow); G.add_node(sink, demand=total_flow); G.add_node(no_match_node)
+                            for p in pnm_list: G.add_edge(source, p['node_id'], capacity=1, weight=0); G.add_edge(p['node_id'], no_match_node, capacity=1, weight=1000000)
+                            for t in team_list: G.add_edge(t['node_id'], sink, capacity=matches_per_team, weight=0)
+                            G.add_edge(no_match_node, sink, capacity=total_flow, weight=0)
+                            for pair in potential_pairs: G.add_edge(pair['p_node'], pair['t_node'], capacity=1, weight=int(pair['cost'] * 10000))
+
+                            try:
+                                flow_dict = nx.min_cost_flow(G)
+                                pair_lookup = {(p['p_node'], p['t_node']): p for p in potential_pairs}
+                                pnm_ids_with_potential = {p['p_id'] for p in potential_pairs}
+                                for p_data in pnm_list:
+                                    p_node = p_data['node_id']
+                                    if p_node in flow_dict:
+                                        for t_node, flow in flow_dict[p_node].items():
+                                            if flow > 0:
+                                                if t_node == no_match_node:
+                                                    reason = "Conflict List" if p_data['id'] not in pnm_ids_with_potential else "Capacity Reached"
+                                                    global_flow_results.append({
+                                                        'PNM ID': p_data['id'], 'PNM Name': p_data['name'],
+                                                        'Bump Team Members': "NO MATCH", 'Match Cost': None, 'Reason': reason
+                                                    })
+                                                else:
+                                                    match_info = pair_lookup.get((p_node, t_node))
+                                                    if match_info:
+                                                        global_flow_results.append({
+                                                            'PNM ID': p_data['id'], 'PNM Name': p_data['name'],
+                                                            'Bump Team Members': match_info['team_members'], 'Match Cost': round(match_info['cost'], 4),
+                                                            'Reason': match_info['reasons']
+                                                        })
+                                                        assignments_map_flow[match_info['t_idx']].append(match_info)
+                            except nx.NetworkXUnfeasible: st.warning(f"Global Flow Unfeasible for Party {party}")
+
+                            global_greedy_results = []
+                            assignments_map_greedy = {t['t_idx']: [] for t in team_list}
+                            matched_pnm_ids = set()
+                            team_counts = {t['t_idx']: 0 for t in team_list}
+                            for pair in potential_pairs:
+                                if pair['p_id'] not in matched_pnm_ids:
+                                    if team_counts[pair['t_idx']] < matches_per_team:
+                                        matched_pnm_ids.add(pair['p_id'])
+                                        team_counts[pair['t_idx']] += 1
+                                        global_greedy_results.append({
+                                            'PNM ID': pair['p_id'], 'PNM Name': pair['p_name'],
+                                            'Bump Team Members': pair['team_members'], 'Match Cost': round(pair['cost'], 4), 'Reason': pair['reasons']
+                                        })
+                                        assignments_map_greedy[pair['t_idx']].append(pair)
+                            for p_data in pnm_list:
+                                if p_data['id'] not in matched_pnm_ids:
+                                    was_blocked = not any(p['p_id'] == p_data['id'] for p in potential_pairs)
+                                    reason = "Conflict List" if was_blocked else "Capacity Reached (Greedy)"
+                                    global_greedy_results.append({
+                                        'PNM ID': p_data['id'], 'PNM Name': p_data['name'],
+                                        'Bump Team Members': "NO MATCH", 'Match Cost': None, 'Reason': reason
+                                    })
+
+                            def run_internal_rotation(assignment_map, method='flow'):
+                                rotation_output = []
+                                actual_rounds = 1 if is_bump_order_set == 'y' else num_rounds
+                                for t_idx, assigned_pnms in assignment_map.items():
+                                    if not assigned_pnms: continue
+                                    team_data = next((t for t in team_list if t['t_idx'] == t_idx), None)
+                                    if not team_data: continue
+                                    raw_rgl = team_data['row_data'].get('RGL', '')
+                                    team_rgl_name = "" if pd.isna(raw_rgl) or str(raw_rgl).lower() == 'nan' else str(raw_rgl).strip()
+                                    valid_members = []
+                                    for m_id, m_name in zip(team_data['member_ids'], team_data['members']):
+                                        if m_id: valid_members.append({'id': m_id, 'name': m_name})
+                                    history = set()
+                                    for round_num in range(1, actual_rounds + 1):
+                                        if round_num == 1 and team_rgl_name:
+                                            active_members = [m for m in valid_members if m['name'].strip() != team_rgl_name]
+                                        else: active_members = valid_members
+                                        must_allow_repeats = round_num > len(active_members)
+                                        if method == 'flow':
+                                            sub_G = nx.DiGraph(); sub_s, sub_t = 's', 't'
+                                            req = len(assigned_pnms)
+                                            sub_G.add_node(sub_s, demand=-req); sub_G.add_node(sub_t, demand=req)
+                                            for p in assigned_pnms: sub_G.add_edge(sub_s, f"p_{p['p_id']}", capacity=1, weight=0)
+                                            for m in active_members: sub_G.add_edge(f"m_{m['id']}", sub_t, capacity=1, weight=0)
+                                            for p in assigned_pnms:
+                                                for m in active_members:
+                                                    is_repeat = (str(p['p_id']), str(m['id'])) in history
+                                                    if is_repeat and not must_allow_repeats: continue
+                                                    m_attrs = member_attr_cache.get(m['id'], set())
+                                                    shared = p['p_attrs'].intersection(m_attrs)
+                                                    score = sum(trait_weights.get(t, 1.0) for t in shared)
+                                                    base_cost = int((1/(1+score))*10000)
+                                                    final_cost = base_cost + 50000 if is_repeat else base_cost
+                                                    reason = ", ".join(shared) if shared else "Rotation"
+                                                    if is_repeat: reason += " (Repeat)"
+                                                    sub_G.add_edge(f"p_{p['p_id']}", f"m_{m['id']}", capacity=1, weight=final_cost, reason=reason)
+                                            try:
+                                                sub_flow = nx.min_cost_flow(sub_G)
+                                                for p in assigned_pnms:
+                                                    p_node = f"p_{p['p_id']}"
+                                                    if p_node in sub_flow:
+                                                        for tgt, flow in sub_flow[p_node].items():
+                                                            if flow > 0 and tgt != sub_t:
+                                                                raw_id = tgt.replace("m_", "")
+                                                                m_name = next((m['name'] for m in valid_members if str(m['id']) == raw_id), "Unknown")
+                                                                edge_d = sub_G.get_edge_data(p_node, tgt)
+                                                                calc_cost = (edge_d.get('weight', 10000) - (50000 if edge_d.get('weight',0) > 40000 else 0)) / 10000.0
+                                                                rotation_output.append({
+                                                                    'Round': round_num, 'Team ID': t_idx, 'Team Members': team_data['joined_names'],
+                                                                    'PNM ID': p['p_id'], 'PNM Name': p['p_name'], 'Matched Member': m_name,
+                                                                    'Match Cost': round(calc_cost, 4), 'Reason': f"Common: {edge_d.get('reason')}"
+                                                                })
+                                                                history.add((str(p['p_id']), str(raw_id)))
+                                            except nx.NetworkXUnfeasible:
+                                                rotation_output.append({'Round': round_num, 'Team ID': t_idx, 'PNM Name': "FLOW FAIL", 'Reason': "Unfeasible"})
+                                        elif method == 'greedy':
+                                            candidates = []
+                                            for p in assigned_pnms:
+                                                for m in active_members:
+                                                    is_repeat = (str(p['p_id']), str(m['id'])) in history
+                                                    if is_repeat and not must_allow_repeats: continue
+                                                    m_attrs = member_attr_cache.get(m['id'], set())
+                                                    shared = p['p_attrs'].intersection(m_attrs)
+                                                    score = sum(trait_weights.get(t, 1.0) for t in shared)
+                                                    final_score = score - 1000 if is_repeat else score
+                                                    reason = ", ".join(shared) if shared else "Rotation"
+                                                    if is_repeat: reason += " (Repeat)"
+                                                    candidates.append((final_score, p, m, reason, is_repeat))
+                                            candidates.sort(key=lambda x: x[0], reverse=True)
+                                            round_pnm_done, round_mem_done = set(), set()
+                                            for sc, p, m, rs, is_rep in candidates:
+                                                if p['p_id'] not in round_pnm_done and m['id'] not in round_mem_done:
+                                                    real_score = sc + 1000 if is_rep else sc
+                                                    rotation_output.append({
+                                                        'Round': round_num, 'Team ID': t_idx, 'Team Members': team_data['joined_names'],
+                                                        'PNM ID': p['p_id'], 'PNM Name': p['p_name'], 'Matched Member': m['name'],
+                                                        'Match Cost': round(1.0/(1.0+real_score), 4), 'Reason': f"Common: {rs}" if real_score > 0 else "Greedy Fill"
+                                                    })
+                                                    round_pnm_done.add(p['p_id']); round_mem_done.add(m['id'])
+                                                    history.add((str(p['p_id']), str(m['id'])))
+                                return rotation_output
+
+                            internal_flow_results = run_internal_rotation(assignments_map_flow, method='flow')
+                            internal_greedy_results = run_internal_rotation(assignments_map_greedy, method='greedy')
+
+                            def generate_bump_instructions(rotation_data):
+                                if not rotation_data: return []
+                                df = pd.DataFrame(rotation_data)
+                                if df.empty or 'Matched Member' not in df.columns: return []
+                                df = df.sort_values(by=['Team ID', 'PNM ID', 'Round'])
+                                df['Person_To_Bump'] = df.groupby(['Team ID', 'PNM ID'])['Matched Member'].shift(1)
+                                instructions = df[df['Person_To_Bump'].notna()].copy()
+                                instructions['At End Of Round'] = instructions['Round'] - 1
+                                output = instructions[['Matched Member', 'At End Of Round', 'Person_To_Bump', 'PNM Name']].rename(columns={
+                                    'Matched Member': 'Member (You)', 'Person_To_Bump': 'Go Bump This Person', 'PNM Name': 'Who is with PNM'
+                                })
+                                return output.sort_values(by=['Member (You)', 'At End Of Round']).to_dict('records')
+
+                            bump_instruct_flow = generate_bump_instructions(internal_flow_results)
+                            bump_instruct_greedy = generate_bump_instructions(internal_greedy_results)
+
+                            if global_flow_results:
+                                output = BytesIO()
+                                df_glob_flow = pd.DataFrame(global_flow_results)
+                                df_glob_greedy = pd.DataFrame(global_greedy_results)
+                                df_rot_flow = pd.DataFrame(internal_flow_results)
+                                df_rot_greedy = pd.DataFrame(internal_greedy_results)
+                                df_bump_flow = pd.DataFrame(bump_instruct_flow)
+                                df_bump_greedy = pd.DataFrame(bump_instruct_greedy)
+                                preview_results[party] = df_rot_flow
+
+                                if is_bump_order_set == 'y':
+                                    export_df = df_rot_flow[df_rot_flow['Round'] == 1].copy()
+                                    export_df = export_df.drop(columns=['Team ID', 'Round', 'Team Members'], errors='ignore')
+                                    sheet_suffix = "Round 1 Matches"
+                                else:
+                                    export_df = df_rot_flow.copy()
+                                    export_df = export_df.drop(columns=['Team ID', 'Team Members'], errors='ignore')
+                                    sheet_suffix = "Rotation Flow"
+                                
+                                save_party_to_gsheet(party, export_df, specific_title=f"Party {party} {sheet_suffix}")
+                                time.sleep(1.5)
+
+                                flow_costs = df_glob_flow['Match Cost'].dropna()
+                                greedy_costs = df_glob_greedy['Match Cost'].dropna()
+                                summary_data = {
+                                    'Metric': ['Total Cost', 'Average Cost', 'Min Cost', 'Max Cost', 'Std Dev'],
+                                    'Global Network Flow': [
+                                        round(flow_costs.sum(), 4), round(flow_costs.mean(), 4) if not flow_costs.empty else 0,
+                                        round(flow_costs.min(), 4) if not flow_costs.empty else 0, round(flow_costs.max(), 4) if not flow_costs.empty else 0,
+                                        round(flow_costs.std(), 4) if len(flow_costs) > 1 else 0
+                                    ],
+                                    'Global Greedy': [
+                                        round(greedy_costs.sum(), 4), round(greedy_costs.mean(), 4) if not greedy_costs.empty else 0,
+                                        round(greedy_costs.min(), 4) if not greedy_costs.empty else 0, round(greedy_costs.max(), 4) if not greedy_costs.empty else 0,
+                                        round(greedy_costs.std(), 4) if len(greedy_costs) > 1 else 0
+                                    ]
+                                }
+                                summary_df = pd.DataFrame(summary_data)
+                                with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+                                    summary_df.to_excel(writer, sheet_name="Summary_Comparison", index=False)
+                                    auto_adjust_columns(writer, "Summary_Comparison", summary_df)
+                                    df_glob_flow.to_excel(writer, sheet_name="Global_Matches_Flow", index=False)
+                                    auto_adjust_columns(writer, "Global_Matches_Flow", df_glob_flow)
+                                    df_glob_greedy.to_excel(writer, sheet_name="Global_Matches_Greedy", index=False)
+                                    auto_adjust_columns(writer, "Global_Matches_Greedy", df_glob_greedy)
+                                    if not df_rot_flow.empty:
+                                        if is_bump_order_set == "n":
+                                            rot_flow_out = df_rot_flow.drop(columns=['Team ID', 'Team Members'], errors='ignore')
+                                            rot_flow_out.to_excel(writer, sheet_name="Rotation_Flow", index=False)
+                                            auto_adjust_columns(writer, "Rotation_Flow", rot_flow_out)
+                                            if not df_bump_flow.empty:
+                                                df_bump_flow.to_excel(writer, sheet_name="Bump_Logistics_Flow", index=False)
+                                                auto_adjust_columns(writer, "Bump_Logistics_Flow", df_bump_flow)
+                                        else:
+                                            r1_flow = df_rot_flow[df_rot_flow['Round'] == 1].drop(columns=['Team ID', 'Round', 'Team Members'], errors='ignore')
+                                            r1_flow.to_excel(writer, sheet_name="Round_1_Matches_Flow", index=False)
+                                            auto_adjust_columns(writer, "Round_1_Matches_Flow", r1_flow)
+                                    if not df_rot_greedy.empty:
+                                        if is_bump_order_set == "n":
+                                            rot_greedy_out = df_rot_greedy.drop(columns=['Team ID', 'Team Members'], errors='ignore')
+                                            rot_greedy_out.to_excel(writer, sheet_name="Rotation_Greedy", index=False)
+                                            auto_adjust_columns(writer, "Rotation_Greedy", rot_greedy_out)
+                                            if not df_bump_greedy.empty:
+                                                df_bump_greedy.to_excel(writer, sheet_name="Bump_Logistics_Greedy", index=False)
+                                                auto_adjust_columns(writer, "Bump_Logistics_Greedy", df_bump_greedy)
+                                        else:
+                                            r1_greedy = df_rot_greedy[df_rot_greedy['Round'] == 1].drop(columns=['Team ID', 'Round', 'Team Members'], errors='ignore')
+                                            r1_greedy.to_excel(writer, sheet_name="Round_1_Matches_Greedy", index=False)
+                                            auto_adjust_columns(writer, "Round_1_Matches_Greedy", r1_greedy)
+                                file_content = output.getvalue()
+                                file_name_x = f"Party_{party}_Match_Analysis.xlsx"
+                                zf.writestr(file_name_x, file_content)
+                                individual_party_files.append((f"Party {party}", file_name_x, file_content))
+
+                    st.session_state.match_results = {
+                        "zip_data": zip_buffer.getvalue(),
+                        "individual_files": individual_party_files,
+                        "preview_data": preview_results,
+                        "bump_setting": is_bump_order_set
+                    }
+                    st.success("Matching Complete!")
+        
+        if st.session_state.match_results:
+            st.divider()
+            st.subheader("Download Results")
+            st.download_button(label="Download All Matches (ZIP)", data=st.session_state.match_results["zip_data"], file_name="recruitment_matches.zip", mime="application/zip")
+            st.write("### Individual Party Sheets")
+            files = st.session_state.match_results["individual_files"]
+            cols_per_row = 4
+            for i in range(0, len(files), cols_per_row):
+                row_files = files[i : i + cols_per_row]
+                cols = st.columns(cols_per_row)
+                for idx, (label, fname, data) in enumerate(row_files):
+                    with cols[idx]:
+                        st.download_button(label=f"Download {label}", data=data, file_name=fname, mime="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", key=f"dl_btn_{fname}", use_container_width=True)
+    
+    # --- TAB 8: LIVE MATCH PREVIEW & EDIT ---
+    with tab8:
+        st.header("Preview Party Matches and Edit")
+        st.caption("This tab scans your Google Sheet for existing match schedules.")
+
+        # 1. Connect to Google Sheets
+        client = get_gspread_client()
+        
+        if client:
+            try:
+                sh = client.open("OverallMatchingInformation")
+                all_worksheets = sh.worksheets()
+                all_titles = [ws.title for ws in all_worksheets]
+
+                # 2. Analyze existing sheets to find valid Categories and Parties
+                # Map the sheet suffixes to user-friendly "Bump Order" labels
+                suffix_map = {
+                    "Round 1 Matches": "Yes",
+                    "Rotation Flow": "No"
+                }
+                
+                # found_data structure: { "Yes": [1, 2, 3], "No": [1, 2] }
+                found_data = {} 
+
+                for title in all_titles:
+                    for suffix, bump_label in suffix_map.items():
+                        if title.startswith("Party ") and title.endswith(suffix):
+                            try:
+                                # Extract Party ID: "Party 5 Round 1 Matches" -> "5"
+                                parts = title.replace(f" {suffix}", "").replace("Party ", "")
+                                party_id = int(parts)
+                                
+                                if bump_label not in found_data:
+                                    found_data[bump_label] = []
+                                found_data[bump_label].append(party_id)
+                            except ValueError:
+                                continue
+
+                # 3. Determine the UI based on what we found
+                if not found_data:
+                    st.warning("⚠️ No match sheets found in 'OverallMatchingInformation'.")
+                    st.info("Please run the matching algorithm or ensure sheets are named 'Party X Round 1 Matches' or 'Party X Rotation Flow'.")
+                else:
+                    # A. Select Bump Order (instead of Schedule Type)
+                    available_bump_options = sorted(found_data.keys(), reverse=True) # Shows 'Yes' then 'No'
+                    
+                    if len(available_bump_options) > 1:
+                        selected_bump = st.radio("Bump Order Set:", available_bump_options, horizontal=True)
+                    else:
+                        selected_bump = available_bump_options[0]
+                        st.info(f"Bump Order Set: **{selected_bump}**")
+
+                    # B. Select Party (filtered by the chosen Bump setting)
+                    available_parties = sorted(found_data[selected_bump])
+                    
+                    if available_parties:
+                        st.divider()
+                        selected_party = st.selectbox(
+                            f"Select Party to Edit:", 
+                            available_parties, 
+                            format_func=lambda x: f"Party {x}"
+                        )
+                        
+                        # Find the actual suffix to reconstruct the sheet title
+                        # If selected_bump is 'Yes', use 'Round 1 Matches'. If 'No', use 'Rotation Flow'.
+                        actual_suffix = [s for s, b in suffix_map.items() if b == selected_bump][0]
+                        target_sheet_title = f"Party {selected_party} {actual_suffix}"
+                        
+                        # 4. Load Data
+                        st.markdown(f"### Party {selected_party}")
+                        
+                        try:
+                            worksheet = sh.worksheet(target_sheet_title)
+                            raw_data = worksheet.get_all_records()
+                            
+                            # Convert to DataFrame (all as string)
+                            df_to_edit = pd.DataFrame(raw_data).astype(str)
+                            
+                            # 5. Render Editor
+                            if not df_to_edit.empty:
+                                edited_df = st.data_editor(
+                                    df_to_edit, 
+                                    use_container_width=True, 
+                                    hide_index=True,
+                                    num_rows="dynamic",
+                                    key=f"editor_{selected_party}_{selected_bump}"
+                                )
+
+                                # 6. Save Button
+                                if st.button("Save Changes to Google Drive"):
+                                    with st.spinner(f"Saving to '{target_sheet_title}'..."):
+                                        save_success = save_party_to_gsheet(
+                                            selected_party, 
+                                            edited_df, 
+                                            specific_title=target_sheet_title
+                                        )
+                                        
+                                        if save_success:
+                                            # Update Session State if it exists
+                                            if "match_results" in st.session_state and st.session_state.match_results:
+                                                if "preview_data" in st.session_state.match_results:
+                                                    st.session_state.match_results["preview_data"][selected_party] = edited_df
+                                            
+                                            # Regenerate ZIP file
+                                            regenerate_zip_from_changes()
+                                            
+                                            st.success("✅ Saved and Regenerated!")
+                                            time.sleep(1)
+                                            st.rerun()
+                            else:
+                                st.warning("This sheet is empty.")
+
+                        except Exception as e:
+                            st.error(f"Error loading sheet: {e}")
+                    else:
+                        st.warning(f"No parties found for Bump Order: {selected_bump}.")
+
+            except Exception as e:
+                st.error(f"❌ Connection Error: {e}")
+
