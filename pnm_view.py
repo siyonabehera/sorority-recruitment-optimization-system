@@ -20,21 +20,27 @@ st.markdown("""
         background-color: #FFFFFF;
     }
     
-    /* --- NEW: Force standard text, list items, and input labels to be dark blue --- */
+    /* Force standard text, list items, and input labels to be dark blue for high contrast */
     .stApp p, .stApp label, .stApp li, .stApp div[data-testid="stMarkdownContainer"] {
         color: #041E42 !important;
     }
-    
-    /* --- Target the top Streamlit header --- */
-    header[data-testid="stHeader"] {
-        background-color: #041E42 !important; /* Penn State Navy Blue */
+
+    /* --- NEW: Ensure links are structurally obvious, not just colored --- */
+    .stApp a {
+        color: #041E42 !important;
+        text-decoration: underline !important;
+        font-weight: bold;
     }
     
-    /* Make the icons and text in the header white (overrides the general text rule) */
+    /* Target the top Streamlit header */
+    header[data-testid="stHeader"] {
+        background-color: #041E42 !important; 
+    }
+    
+    /* Make the icons and text in the header white */
     header[data-testid="stHeader"] *, header[data-testid="stHeader"] span {
         color: #FFFFFF !important;
     }
-    /* ------------------------------------------- */
 
     /* Make headers PSU Navy Blue */
     h1, h2, h3, h4, h5, h6 {
@@ -45,7 +51,7 @@ st.markdown("""
     .stButton>button {
         background-color: #041E42;
         border-radius: 6px;
-        border: 1px solid #041E42;
+        border: 2px solid #041E42; /* Slightly thicker border for definition */
         padding: 10px 24px;
         font-weight: bold;
     }
@@ -55,26 +61,29 @@ st.markdown("""
         color: #FFFFFF !important; 
     }
     
-    /* Button hover effect (Lighter Beaver Blue) */
-    .stButton>button:hover {
+    /* --- NEW: Button hover effect using physical changes (shadow), not just color --- */
+    .stButton>button:hover, .stButton>button:focus {
         background-color: #1E407C;
-        border: 1px solid #1E407C;
+        border: 2px solid #1E407C;
+        box-shadow: 0px 4px 6px rgba(0,0,0,0.3); /* Adds physical depth */
+        transform: translateY(-1px); /* Slight movement confirms interaction */
     }
     
-    /* Style the info boxes (light blue background, dark text) */
+    /* --- NEW: Info boxes get a thick left border as a structural alert indicator --- */
     div[data-testid="stAlert"] {
         background-color: #F0F4F8;
         border: 1px solid #041E42;
+        border-left: 6px solid #041E42 !important; 
     }
     
     div[data-testid="stAlert"] p, div[data-testid="stAlert"] span {
         color: #041E42 !important;
     }
 
-    /* Form background slightly offset for contrast */
+    /* --- NEW: Form background border darkened for better visibility --- */
     div[data-testid="stForm"] {
         background-color: #FAFAFA;
-        border: 1px solid #E0E0E0;
+        border: 1px solid #B3B3B3; /* Darkened from E0E0E0 for better structural outline */
     }
 </style>
 """, unsafe_allow_html=True)
