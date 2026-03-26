@@ -32,18 +32,23 @@ st.markdown("""
         font-weight: bold;
     }
     
-    /* Target the top Streamlit header */
+    /* --- HEADER ICONS & BACKGROUND --- */
     header[data-testid="stHeader"] {
         background-color: #E6F0FA !important; 
     }
     
-    /* --- CRITICAL FIX: Make the text AND SVG icons in the header dark blue --- */
-    header[data-testid="stHeader"] *, 
-    header[data-testid="stHeader"] span,
-    header[data-testid="stHeader"] svg,
-    header[data-testid="stHeader"] svg path {
+    header[data-testid="stHeader"] * {
         color: #041E42 !important;
+    }
+
+    header[data-testid="stHeader"] svg {
+        stroke: #041E42 !important;
+        fill: transparent !important; 
+    }
+
+    header[data-testid="stHeader"] a svg {
         fill: #041E42 !important;
+        stroke: none !important;
     }
 
     /* Make headers PSU Navy Blue */
@@ -104,6 +109,11 @@ st.markdown("""
         border-radius: 8px; 
         padding: 20px; 
         box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
+    }
+    
+    /* --- HIDE DEFAULT STREAMLIT FOOTER --- */
+    footer {
+        visibility: hidden;
     }
 </style>
 """, unsafe_allow_html=True)
