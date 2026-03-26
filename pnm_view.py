@@ -9,8 +9,48 @@ from pathlib import Path
 import whisper
 from yt_dlp import YoutubeDL
 
-# --- Page Configuration ---
+# --- Page Configuration & Theming ---
 st.set_page_config(page_title="PNM Recruitment Form", layout="wide")
+
+# Injecting Custom Penn State CSS Theme
+st.markdown("""
+<style>
+    /* Main background to clean white */
+    .stApp {
+        background-color: #FFFFFF;
+    }
+    /* Make headers PSU Navy Blue */
+    h1, h2, h3, h4, h5, h6 {
+        color: #041E42 !important;
+    }
+    /* Style the submit button */
+    .stButton>button {
+        background-color: #041E42;
+        color: #FFFFFF;
+        border-radius: 6px;
+        border: 1px solid #041E42;
+        padding: 10px 24px;
+        font-weight: bold;
+    }
+    /* Button hover effect (Lighter Beaver Blue) */
+    .stButton>button:hover {
+        background-color: #1E407C;
+        color: #FFFFFF;
+        border: 1px solid #1E407C;
+    }
+    /* Style the info boxes (light blue background, dark text) */
+    div[data-testid="stAlert"] {
+        background-color: #F0F4F8;
+        color: #041E42;
+        border: 1px solid #041E42;
+    }
+    /* Form background slightly offset for contrast */
+    div[data-testid="stForm"] {
+        background-color: #FAFAFA;
+        border: 1px solid #E0E0E0;
+    }
+</style>
+""", unsafe_allow_html=True)
 
 # --- Resource Caching ---
 @st.cache_resource
