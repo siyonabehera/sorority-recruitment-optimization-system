@@ -19,6 +19,18 @@ st.markdown("""
     .stApp {
         background-color: #FFFFFF;
     }
+    
+    /* --- NEW: Target the top Streamlit header --- */
+    header[data-testid="stHeader"] {
+        background-color: #041E42 !important; /* Penn State Navy Blue */
+    }
+    
+    /* Make the icons and text in the header white */
+    header[data-testid="stHeader"] * {
+        color: #FFFFFF !important;
+    }
+    /* ------------------------------------------- */
+
     /* Make headers PSU Navy Blue */
     h1, h2, h3, h4, h5, h6 {
         color: #041E42 !important;
