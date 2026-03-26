@@ -15,17 +15,17 @@ st.set_page_config(page_title="PNM Recruitment Form", layout="wide")
 # Injecting Custom Penn State CSS Theme
 st.markdown("""
 <style>
-    /* Main background to clean white */
+    /* Main background changed to a soft light blue */
     .stApp {
-        background-color: #FFFFFF;
+        background-color: #E6F0FA; 
     }
     
-    /* Force standard text, list items, and input labels to be dark blue for high contrast */
+    /* Force standard text, list items, and input labels to be dark blue */
     .stApp p, .stApp label, .stApp li, .stApp div[data-testid="stMarkdownContainer"] {
         color: #041E42 !important;
     }
 
-    /* --- NEW: Ensure links are structurally obvious, not just colored --- */
+    /* Ensure links are structurally obvious */
     .stApp a {
         color: #041E42 !important;
         text-decoration: underline !important;
@@ -34,12 +34,12 @@ st.markdown("""
     
     /* Target the top Streamlit header */
     header[data-testid="stHeader"] {
-        background-color: #041E42 !important; 
+        background-color: #E6F0FA !important; 
     }
     
-    /* Make the icons and text in the header white */
+    /* Make the icons and text in the header dark blue */
     header[data-testid="stHeader"] *, header[data-testid="stHeader"] span {
-        color: #FFFFFF !important;
+        color: #041E42 !important;
     }
 
     /* Make headers PSU Navy Blue */
@@ -47,43 +47,60 @@ st.markdown("""
         color: #041E42 !important;
     }
     
-    /* Style the submit button */
+    /* --- BUTTON STYLING --- */
     .stButton>button {
         background-color: #041E42;
         border-radius: 6px;
-        border: 2px solid #041E42; /* Slightly thicker border for definition */
+        border: 2px solid #041E42; 
         padding: 10px 24px;
         font-weight: bold;
     }
     
-    /* Force button text to stay white */
     .stButton>button, .stButton>button p, .stButton>button span {
         color: #FFFFFF !important; 
     }
     
-    /* --- NEW: Button hover effect using physical changes (shadow), not just color --- */
     .stButton>button:hover, .stButton>button:focus {
         background-color: #1E407C;
         border: 2px solid #1E407C;
-        box-shadow: 0px 4px 6px rgba(0,0,0,0.3); /* Adds physical depth */
-        transform: translateY(-1px); /* Slight movement confirms interaction */
+        box-shadow: 0px 4px 6px rgba(0,0,0,0.3); 
+        transform: translateY(-1px); 
     }
     
-    /* --- NEW: Info boxes get a thick left border as a structural alert indicator --- */
+    /* --- ALERT BOXES (Success, Error, Info, Warning) --- */
+    /* Unified white cards with thick structural borders remove reliance on red/green vision */
     div[data-testid="stAlert"] {
-        background-color: #F0F4F8;
-        border: 1px solid #041E42;
+        background-color: #FFFFFF !important; 
+        border: 1px solid #B3B3B3 !important;
         border-left: 6px solid #041E42 !important; 
+        border-radius: 6px;
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.05); /* Soft shadow to lift it off the page */
     }
     
     div[data-testid="stAlert"] p, div[data-testid="stAlert"] span {
         color: #041E42 !important;
+        font-weight: 600; /* Makes the success/error message slightly bolder */
     }
 
-    /* --- NEW: Form background border darkened for better visibility --- */
+    /* --- TOAST POP-UPS (Bottom right notifications) --- */
+    div[data-testid="stToast"] {
+        background-color: #041E42 !important;
+        border: 2px solid #FFFFFF !important;
+        border-radius: 8px;
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
+    }
+    
+    div[data-testid="stToast"] p, div[data-testid="stToast"] span {
+        color: #FFFFFF !important; /* White text on dark blue pop-up */
+    }
+
+    /* --- FORM CONTAINER --- */
     div[data-testid="stForm"] {
-        background-color: #FAFAFA;
-        border: 1px solid #B3B3B3; /* Darkened from E0E0E0 for better structural outline */
+        background-color: #FFFFFF;
+        border: 1px solid #B3B3B3; 
+        border-radius: 8px; 
+        padding: 20px; 
+        box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
     }
 </style>
 """, unsafe_allow_html=True)
