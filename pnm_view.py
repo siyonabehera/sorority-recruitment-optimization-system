@@ -37,13 +37,29 @@ st.markdown("""
         background-color: #E6F0FA !important; 
     }
     
-    /* Let Streamlit's native 'currentColor' logic do the work safely.
-       This will color the text AND the icons without breaking the SVG shapes. */
-    header[data-testid="stHeader"] button,
-    header[data-testid="stHeader"] span,
-    header[data-testid="stHeader"] a,
-    header[data-testid="stHeader"] svg {
+    /* Make standard text (Share, Deploy) dark blue */
+    header[data-testid="stHeader"] * {
         color: #041E42 !important;
+    }
+
+    /* 1. Target the GitHub Icon perfectly */
+    header[data-testid="stHeader"] a svg {
+        fill: #041E42 !important;
+        stroke: none !important;
+    }
+
+    /* 2. Target the button icons (Star, Pencil, Settings) */
+    header[data-testid="stHeader"] button svg {
+        color: #041E42 !important;
+        fill: #041E42 !important;
+        stroke: #041E42 !important;
+    }
+
+    /* 3. CRITICAL: Protect invisible bounding boxes! 
+       This prevents the solid blue square over the settings menu, 
+       while letting the Star and Pencil get correctly colored. */
+    header[data-testid="stHeader"] svg path[fill="none"] {
+        fill: transparent !important;
     }
     /* ------------------------------------- */
 
