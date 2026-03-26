@@ -68,25 +68,39 @@ st.markdown("""
         color: #041E42 !important; 
         font-weight: 500;
     }
-    
-    /* --- NEW FIX: DISABLED INPUT FIELDS --- */
-    /* Force the autofilled/disabled text to be navy blue instead of pale gray */
-    div[data-baseweb="input"] input[disabled],
-    div[data-baseweb="textarea"] textarea[disabled],
-    /* Target the text inside disabled select boxes */
-    div[data-baseweb="select"] [aria-disabled="true"] span,
-    div[data-baseweb="select"] [aria-disabled="true"] {
-        color: #041E42 !important;
-        -webkit-text-fill-color: #041E42 !important; 
-        opacity: 1 !important; 
-    }
-    /* --------------------------------------- */
 
     /* Change border color slightly when user clicks to type */
     div[data-baseweb="input"] > div:focus-within,
     div[data-baseweb="textarea"] > div:focus-within {
         border: 2px solid #041E42 !important; 
     }
+
+    /* --- CRITICAL FIX: DISABLED/AUTOFILLED INPUT FIELDS --- */
+    /* 1. Target the actual input elements for text fields (like the Email box) */
+    input:disabled, 
+    input[disabled], 
+    textarea:disabled, 
+    textarea[disabled] {
+        color: #041E42 !important;
+        -webkit-text-fill-color: #041E42 !important;
+        opacity: 1 !important;
+    }
+
+    /* 2. Target Streamlit's wrapper elements for disabled fields (like the Year dropdown) */
+    div[aria-disabled="true"], 
+    div[aria-disabled="true"] span, 
+    div[aria-disabled="true"] input {
+        color: #041E42 !important;
+        -webkit-text-fill-color: #041E42 !important;
+        opacity: 1 !important;
+    }
+
+    /* 3. Ensure the background of disabled fields stays light blue, overriding Streamlit's default gray */
+    div[aria-disabled="true"] > div,
+    div[aria-disabled="true"] {
+        background-color: #E6F0FA !important; 
+    }
+    /* ------------------------------------------------------- */
 
     /* --- DROPDOWN MENU (POPOVER) STYLING --- */
     div[data-baseweb="popover"] ul {
