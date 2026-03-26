@@ -719,12 +719,15 @@ else:
             except Exception as e: st.error(f"Error generating preview: {e}")
         
         run_button = st.button("2. Run Matching Algorithm", type="primary", use_container_width=True)
-
+        
         # ==========================================
         # BUTTON 1: PREPROCESS ATTRIBUTES
         # ==========================================
         if preprocess_button:
-            with st.spinner("Processing geocoding and semantic attributes..."):
+            # We use an empty container so we can update text dynamically without making the page scroll
+            status_container = st.empty()
+            
+            with st.spinner("Initializing data..."):
                 bump_teams, party_excuses, pnm_intial_interest, member_interest, member_pnm_no_match = load_google_sheet_data(SHEET_NAME)
                 if any(df is None for df in [pnm_intial_interest, member_interest]): 
                     st.error("Failed to load required sheet data.")
@@ -733,7 +736,6 @@ else:
                 for df in [pnm_intial_interest, member_interest]: 
                     df.columns = df.columns.str.strip()
                 
-                model = load_model()
                 city_coords_map, all_city_keys = load_city_database()
 
                 # --- 1. STANDARDIZE COLUMNS ---
@@ -762,6 +764,7 @@ else:
                     return None, None
 
                 # --- 3. GEO CLUSTERING ---
+                status_container.info("Processing offline geographical clusters...")
                 all_coords, geo_tracker = [], []
                 for idx, row in df_mem.iterrows():
                     lat, lon = get_coords_offline_local(row.get('Hometown'), city_coords_map, all_city_keys)
@@ -792,55 +795,143 @@ else:
                         if tracker['type'] == 'mem': mem_geo_tags[tracker['id']] = group_name
                         else: pnm_geo_tags[tracker['id']] = group_name
 
-                # --- 4. SEMANTIC CLUSTERING ---
-                all_terms_list, mem_interest_map, pnm_interest_map = [], [], []
-                cols_to_extract = ['Major', 'Minor', 'Hobbies', 'College Involvement', 'High School Involvement']
-                
-                for idx, row in df_mem.iterrows():
-                    terms = extract_terms(row, cols_to_extract)
-                    for term in terms: 
-                        all_terms_list.append(term)
-                        mem_interest_map.append({'id': row['Sorority ID'], 'term': term})
-                        
-                for idx, row in pnm_clean.iterrows():
-                    terms = extract_terms(row, cols_to_extract)
-                    for term in terms: 
-                        all_terms_list.append(term)
-                        pnm_interest_map.append({'id': row['PNM ID'], 'term': term})
+                # --- 4. SEMANTIC EXTRACTION (GEMINI) ---
+                try:
+                    GEMINI_API_KEY = st.secrets["GEMINI_API_KEY"]
+                    client_extract = genai.Client(api_key=GEMINI_API_KEY)
+                except Exception as e:
+                    st.error(f"Failed to initialize Gemini API. Have you set GEMINI_API_KEY in Streamlit secrets? Error: {e}")
+                    st.stop()
 
-                term_to_group = {}
-                if all_terms_list:
-                    unique_terms = list(set(all_terms_list))
-                    embeddings = model.encode(unique_terms)
-                    sem_clustering = AgglomerativeClustering(n_clusters=None, distance_threshold=0.5, metric='cosine', linkage='average')
-                    sem_labels = sem_clustering.fit_predict(embeddings)
+                EXTRACTION_MODEL = "gemini-3.1-flash-lite-preview"
+                EXTRACTION_BATCH_SIZE = 15
+                EXTRACTION_RETRY_ATTEMPTS = 12
+                EXTRACTION_RETRY_DELAY = 15
+                MIN_SECONDS_PER_REQUEST = 6.5
+
+                EXTRACTION_SYSTEM_PROMPT = """You are a recruitment matching assistant for a college sorority.
+                Read each person's academic and personal profile and extract normalized semantic tags
+                that will be used to match them with compatible people.
+
+                TAG RULES:
+                - Lowercase with underscores (e.g. pre_med, greek_life, east_coast)
+                - Normalize similar things to one tag: "club volleyball", "JV volleyball", "sand v-ball" → volleyball
+                - Capture career intent: "wants to be a doctor", "pre-med" → healthcare_career
+                - Capture shared background: "small town girl", "rural upbringing" → small_town_background
+                - Capture meaningful values: "first gen student", "first generation college" → first_generation
+                - Include: academic field, career direction, sports/athletics, hobbies, org involvement, background
+                - Return 5–12 tags per person
+                - BE CONSISTENT: if two people have similar profiles they MUST share tags — this is critical
+                  for the matching algorithm to work correctly
+
+                Return ONLY a JSON array of arrays, one inner array per person in the same order given.
+                Example for 2 people: [["pre_med", "volleyball", "midwest"], ["business", "greek_life", "east_coast"]]
+                No markdown fences, no explanation, just the JSON array."""
+
+                def _build_profile_str(row: dict) -> str:
+                    parts = []
+                    for field in ['Major', 'Minor', 'High School Involvement', 'College Involvement', 'Hobbies']:
+                        val = str(row.get(field, '')).strip()
+                        if val and val.lower() not in ('nan', '', 'none'):
+                            parts.append(f"{field}: {val}")
+                    return "\n".join(parts) if parts else "No profile information provided."
+
+                def _extract_attrs_batch(profiles: list) -> list:
+                    numbered = [f"Person {i+1}:\n{p}" for i, p in enumerate(profiles)]
+                    content = EXTRACTION_SYSTEM_PROMPT + "\n\n" + "\n\n".join(numbered)
+
+                    for attempt in range(1, EXTRACTION_RETRY_ATTEMPTS + 1):
+                        try:
+                            response = client_extract.models.generate_content(
+                                model=EXTRACTION_MODEL,
+                                contents=content,
+                                config=types.GenerateContentConfig(
+                                    temperature=0.1,
+                                    max_output_tokens=2000
+                                )
+                            )
+                            raw = response.text.strip()
+                            raw = re.sub(r"^```[a-z]*\n?", "", raw).rstrip("`").strip()
+                            result = json.loads(raw)
+
+                            while len(result) < len(profiles):
+                                result.append([])
+                            return [set(str(t).lower() for t in tags) for tags in result[:len(profiles)]]
+
+                        except Exception as e:
+                            err_str = str(e).lower()
+                            if any(x in err_str for x in ["429", "503", "quota", "resourceexhausted", "unavailable"]):
+                                wait = (2 ** attempt) + random.uniform(1, 5) + 10
+                                status_container.warning(f"API Busy/Overloaded (Attempt {attempt}/{EXTRACTION_RETRY_ATTEMPTS}). Waiting {wait:.1f}s...")
+                            else:
+                                wait = EXTRACTION_RETRY_DELAY
+                                status_container.warning(f"API/Parse Error: {e}. Waiting {wait}s...")
+
+                            if attempt < EXTRACTION_RETRY_ATTEMPTS:
+                                time.sleep(wait)
+                            else:
+                                status_container.error("Extraction failed for this batch — assigning empty tags.")
+                                return [set() for _ in profiles]
+
+                def process_dataframe_llm(df, id_col_name, entity_name):
+                    llm_attrs = {}
+                    rows = df.to_dict('records')
+                    total_batches = (len(rows) + EXTRACTION_BATCH_SIZE - 1) // EXTRACTION_BATCH_SIZE
                     
-                    temp_map = {}
-                    for term, label in zip(unique_terms, sem_labels):
-                        if label not in temp_map: temp_map[label] = []
-                        temp_map[label].append(term)
-                        
-                    for label, terms in temp_map.items():
-                        attr_name = min(terms, key=len)
-                        for term in terms: term_to_group[term] = attr_name
+                    progress_bar = st.progress(0)
 
-                def finalize_attributes(df, id_col, geo_tags, int_map):
+                    for batch_idx, batch_start in enumerate(range(0, len(rows), EXTRACTION_BATCH_SIZE)):
+                        batch_start_time = time.time()
+                        batch = rows[batch_start: batch_start + EXTRACTION_BATCH_SIZE]
+                        profiles = [_build_profile_str(r) for r in batch]
+                        end = min(batch_start + EXTRACTION_BATCH_SIZE, len(rows))
+
+                        status_container.info(f"Extracting {entity_name} Semantic Tags via Gemini: {batch_start+1}–{end} of {len(rows)}...")
+                        tag_lists = _extract_attrs_batch(profiles)
+
+                        for i, row in enumerate(batch):
+                            llm_attrs[row[id_col_name]] = tag_lists[i]
+
+                        # Update progress bar
+                        progress_bar.progress((batch_idx + 1) / total_batches)
+
+                        elapsed = time.time() - batch_start_time
+                        sleep_time = max(0.0, MIN_SECONDS_PER_REQUEST - elapsed)
+                        if batch_start + EXTRACTION_BATCH_SIZE < len(rows):
+                            time.sleep(sleep_time)
+
+                    progress_bar.empty() # Remove progress bar when done
+                    return llm_attrs
+
+                # Execute LLM Extraction
+                mem_llm_attrs = process_dataframe_llm(df_mem, 'Sorority ID', 'Members')
+                pnm_llm_attrs = process_dataframe_llm(pnm_clean, 'PNM ID', 'PNMs')
+                
+                status_container.success("Geographical and Semantic Attribute extraction complete! Finalizing...")
+
+                # --- 5. FINALIZE ATTRIBUTES ---
+                def finalize_attributes_llm(df, id_col, geo_tags, llm_tags):
                     final_attrs = {row[id_col]: set() for _, row in df.iterrows()}
                     for idx, row in df.iterrows():
                         pid = row[id_col]
+                        
+                        # Add Class Year tag
                         yt = get_year_tag(row.get('Year'))
                         if yt: final_attrs[pid].add(yt)
+                        
+                        # Add Geo tag
                         if pid in geo_tags: final_attrs[pid].add(geo_tags[pid])
-                    for entry in int_map:
-                        pid = entry['id']
-                        if entry['term'] in term_to_group: final_attrs[pid].add(term_to_group[entry['term']])
+                            
+                        # Add Gemini LLM tags
+                        if pid in llm_tags: final_attrs[pid].update(llm_tags[pid])
+                            
                     return df[id_col].map(lambda x: ", ".join(final_attrs.get(x, set())))
 
                 # Append to original DataFrames
-                member_interest['attributes_for_matching'] = finalize_attributes(df_mem, 'Sorority ID', mem_geo_tags, mem_interest_map)
-                pnm_intial_interest['attributes_for_matching'] = finalize_attributes(pnm_clean, 'PNM ID', pnm_geo_tags, pnm_interest_map)
+                member_interest['attributes_for_matching'] = finalize_attributes_llm(df_mem, 'Sorority ID', mem_geo_tags, mem_llm_attrs)
+                pnm_intial_interest['attributes_for_matching'] = finalize_attributes_llm(pnm_clean, 'PNM ID', pnm_geo_tags, pnm_llm_attrs)
                 
-                # --- 5. WRITE BACK TO GOOGLE SHEETS ---
+                # --- 6. WRITE BACK TO GOOGLE SHEETS ---
                 with st.spinner("Writing finalized attributes back to Google Sheets..."):
                     try:
                         # Safely update the master tabs
@@ -848,14 +939,14 @@ else:
                         pnm_success = update_worksheet_data("PNM Information", pnm_intial_interest)
                         
                         if mem_success and pnm_success:
-                            st.success("✅ Attributes successfully preprocessed and saved to Google Sheets!")
+                            status_container.success("✅ Attributes successfully preprocessed and saved to Google Sheets!")
                             
                             # CRITICAL: Clear the data cache so that when the user clicks 
                             # "Run Matching Algorithm", the app pulls the fresh data containing the new columns!
                             get_data.clear()
                             load_google_sheet_data.clear()
                         else:
-                            st.error("⚠️ There was an issue writing the data to the sheets. Check your console logs.")
+                            status_container.error("⚠️ There was an issue writing the data to the sheets. Check your console logs.")
                             
                     except Exception as e:
-                        st.error(f"Error writing to Google Sheets: {e}")
+                        status_container.error(f"Error writing to Google Sheets: {e}")
