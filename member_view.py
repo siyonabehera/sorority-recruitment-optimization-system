@@ -479,7 +479,7 @@ with tab4:
     
     if not df_pnm.empty:
         # Columns cleanup
-        cols_to_drop = [c for c in df_pnm.columns if 'timestamp' in c.lower() or 'rank' in c.lower()]
+        cols_to_drop = [c for c in df_pnm.columns if 'timestamp' in c.lower() or 'rank' in c.lower() or 'attributes_for_matching' in c.lower()]
         if cols_to_drop: df_pnm = df_pnm.drop(columns=cols_to_drop)
 
         # Download
