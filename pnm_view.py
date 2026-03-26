@@ -20,13 +20,18 @@ st.markdown("""
         background-color: #FFFFFF;
     }
     
-    /* --- NEW: Target the top Streamlit header --- */
+    /* --- NEW: Force standard text, list items, and input labels to be dark blue --- */
+    .stApp p, .stApp label, .stApp li, .stApp div[data-testid="stMarkdownContainer"] {
+        color: #041E42 !important;
+    }
+    
+    /* --- Target the top Streamlit header --- */
     header[data-testid="stHeader"] {
         background-color: #041E42 !important; /* Penn State Navy Blue */
     }
     
-    /* Make the icons and text in the header white */
-    header[data-testid="stHeader"] * {
+    /* Make the icons and text in the header white (overrides the general text rule) */
+    header[data-testid="stHeader"] *, header[data-testid="stHeader"] span {
         color: #FFFFFF !important;
     }
     /* ------------------------------------------- */
@@ -35,27 +40,37 @@ st.markdown("""
     h1, h2, h3, h4, h5, h6 {
         color: #041E42 !important;
     }
+    
     /* Style the submit button */
     .stButton>button {
         background-color: #041E42;
-        color: #FFFFFF;
         border-radius: 6px;
         border: 1px solid #041E42;
         padding: 10px 24px;
         font-weight: bold;
     }
+    
+    /* Force button text to stay white */
+    .stButton>button, .stButton>button p, .stButton>button span {
+        color: #FFFFFF !important; 
+    }
+    
     /* Button hover effect (Lighter Beaver Blue) */
     .stButton>button:hover {
         background-color: #1E407C;
-        color: #FFFFFF;
         border: 1px solid #1E407C;
     }
+    
     /* Style the info boxes (light blue background, dark text) */
     div[data-testid="stAlert"] {
         background-color: #F0F4F8;
-        color: #041E42;
         border: 1px solid #041E42;
     }
+    
+    div[data-testid="stAlert"] p, div[data-testid="stAlert"] span {
+        color: #041E42 !important;
+    }
+
     /* Form background slightly offset for contrast */
     div[data-testid="stForm"] {
         background-color: #FAFAFA;
