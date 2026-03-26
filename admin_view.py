@@ -1668,7 +1668,7 @@ else:
                             if not df_to_edit.empty:
                                 
                                 # --- NEW: Search Functionality ---
-                                search_query = st.text_input("🔍 Search within this sheet:", "", key=f"search_{selected_party}")
+                                search_query = st.text_input("Search within this sheet:", "", key=f"search_{selected_party}")
                                 
                                 if search_query:
                                     # Filter rows where ANY column contains the search query (case-insensitive)
@@ -1677,7 +1677,7 @@ else:
                                     
                                     # Disable adding/deleting rows while searching to protect index alignment
                                     dynamic_rows_setting = "fixed"
-                                    st.caption("⚠️ *Row additions and deletions are disabled while search is active.*")
+                                    st.caption("*Row additions and deletions are disabled while search is active.*")
                                 else:
                                     display_df = df_to_edit.copy()
                                     dynamic_rows_setting = "dynamic"
