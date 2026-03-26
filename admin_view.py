@@ -614,14 +614,14 @@ else:
     with tab1:
         st.header("Event Configuration")
         detected_party_count = get_max_party_count()
-        st.info(f"ℹ️ **Party Count:** {detected_party_count} (Detected automatically from 'Party Information' sheet)")
+        st.info(f"**Party Count:** {detected_party_count} (Detected automatically from 'Party Information' sheet)")
         st.divider()
         st.header("Roster Management")
         col_r1, col_r2 = st.columns(2)
         with col_r1:
             st.subheader("Option A: Sync from Sheet")
             st.info("Pull names directly from the 'Member Information' tab.")
-            if st.button("🔄 Sync Roster from 'Member Information'"):
+            if st.button("Sync Roster from 'Member Information'"):
                 st.cache_data.clear() 
                 df_source = get_data("Member Information")
                 if not df_source.empty:
@@ -661,12 +661,12 @@ else:
     # --- TAB 2: MEMBER INFORMATION ---
     with tab2:
         st.header("Member Information Database")
-        if st.button("🔄 Refresh Member Data"): 
+        if st.button("Refresh Member Data"): 
             st.cache_data.clear()
             st.rerun()
         df_members = get_data("Member Information")
         if not df_members.empty:
-            search_mem = st.text_input("🔍 Search Members:")
+            search_mem = st.text_input("Search Members:")
             if search_mem:
                 mask = df_members.apply(lambda x: x.astype(str).str.contains(search_mem, case=False).any(), axis=1)
                 display_df = df_members[mask]
@@ -678,7 +678,7 @@ else:
     # --- TAB 3: PNM RANKINGS ---
     with tab3:
         st.header("PNM Ranking Management")
-        if st.button("🔄 Refresh PNM & Ranking Data"):
+        if st.button("Refresh PNM & Ranking Data"):
             st.cache_data.clear()
             st.rerun()
         df_votes = get_data("PNM Rankings")
@@ -734,7 +734,7 @@ else:
                         st.success(f"✅ Auto-synced {count} PNM rankings!")
                     st.divider()
                     st.subheader("Raw Ranking Data")
-                    rank_search = st.text_input("🔍 Search Raw Rankings:", key="raw_rank_search")
+                    rank_search = st.text_input("Search Raw Rankings:", key="raw_rank_search")
                     if rank_search:
                         display_votes = df_votes[df_votes.astype(str).apply(lambda x: x.str.contains(rank_search, case=False).any(), axis=1)]
                     else:
@@ -746,7 +746,7 @@ else:
         st.divider()
         st.subheader("Current PNM Database")
         if not df_pnms_master.empty:
-            pnm_search = st.text_input("🔍 Search PNM Database:")
+            pnm_search = st.text_input("Search PNM Database:")
             display_pnm = df_pnms_master[df_pnms_master.astype(str).apply(lambda x: x.str.contains(pnm_search, case=False).any(), axis=1)] if pnm_search else df_pnms_master
             st.dataframe(display_pnm, use_container_width=True)
         else: st.info("No PNM data found.")  
@@ -754,7 +754,7 @@ else:
     # --- TAB 4: VIEW BUMP TEAMS ---
     with tab4:
         st.header("Bump Team Management")
-        if st.button("🔄 Refresh Bump Teams"):
+        if st.button("Refresh Bump Teams"):
             st.cache_data.clear()
             st.rerun()
         df_teams = get_data("Bump Teams")
@@ -807,7 +807,7 @@ else:
                         except Exception as e: st.error(f"Error: {e}")
             st.divider()
             st.subheader("Current Bump Teams List")
-            team_search = st.text_input("🔍 Search Bump Teams:", key="bump_team_search")
+            team_search = st.text_input("Search Bump Teams:", key="bump_team_search")
             if team_search:
                 display_teams = df_teams[df_teams.astype(str).apply(lambda x: x.str.contains(team_search, case=False).any(), axis=1)]
             else:
@@ -818,12 +818,12 @@ else:
     # --- TAB 5 & 6: EXCUSES & CONNECTIONS ---
     with tab5:
         st.header("Member Party Excuses")
-        if st.button("🔄 Refresh Excuses"): 
+        if st.button("Refresh Excuses"): 
             st.cache_data.clear()
             st.rerun()
         df_ex = get_data("Party Excuses")
         if not df_ex.empty:
-            excuse_search = st.text_input("🔍 Search Excuses:", key="excuse_search_input")
+            excuse_search = st.text_input("Search Excuses:", key="excuse_search_input")
             if excuse_search:
                 display_ex = df_ex[df_ex.astype(str).apply(lambda x: x.str.contains(excuse_search, case=False).any(), axis=1)]
             else: display_ex = df_ex
@@ -832,12 +832,12 @@ else:
 
     with tab6:
         st.header("Prior Member - PNM Connections")
-        if st.button("🔄 Refresh Connections"): 
+        if st.button("Refresh Connections"): 
             st.cache_data.clear()
             st.rerun()
         df_conn = get_data("Prior Connections")
         if not df_conn.empty:
-            conn_search = st.text_input("🔍 Search Prior Connections:", key="conn_search_input")
+            conn_search = st.text_input("Search Prior Connections:", key="conn_search_input")
             if conn_search:
                 display_conn = df_conn[df_conn.astype(str).apply(lambda x: x.str.contains(conn_search, case=False).any(), axis=1)]
             else: display_conn = df_conn
