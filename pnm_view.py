@@ -72,10 +72,13 @@ st.markdown("""
     /* --- NEW FIX: DISABLED INPUT FIELDS --- */
     /* Force the autofilled/disabled text to be navy blue instead of pale gray */
     div[data-baseweb="input"] input[disabled],
-    div[data-baseweb="textarea"] textarea[disabled] {
+    div[data-baseweb="textarea"] textarea[disabled],
+    /* Target the text inside disabled select boxes */
+    div[data-baseweb="select"] [aria-disabled="true"] span,
+    div[data-baseweb="select"] [aria-disabled="true"] {
         color: #041E42 !important;
-        -webkit-text-fill-color: #041E42 !important; /* Override browser defaults for disabled text */
-        opacity: 1 !important; /* Prevent the text from being faded out */
+        -webkit-text-fill-color: #041E42 !important; 
+        opacity: 1 !important; 
     }
     /* --------------------------------------- */
 
