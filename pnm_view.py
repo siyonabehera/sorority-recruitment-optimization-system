@@ -37,9 +37,13 @@ st.markdown("""
         background-color: #E6F0FA !important; 
     }
     
-    /* Make the icons and text in the header dark blue */
-    header[data-testid="stHeader"] *, header[data-testid="stHeader"] span {
+    /* --- CRITICAL FIX: Make the text AND SVG icons in the header dark blue --- */
+    header[data-testid="stHeader"] *, 
+    header[data-testid="stHeader"] span,
+    header[data-testid="stHeader"] svg,
+    header[data-testid="stHeader"] svg path {
         color: #041E42 !important;
+        fill: #041E42 !important;
     }
 
     /* Make headers PSU Navy Blue */
@@ -68,18 +72,17 @@ st.markdown("""
     }
     
     /* --- ALERT BOXES (Success, Error, Info, Warning) --- */
-    /* Unified white cards with thick structural borders remove reliance on red/green vision */
     div[data-testid="stAlert"] {
         background-color: #FFFFFF !important; 
         border: 1px solid #B3B3B3 !important;
         border-left: 6px solid #041E42 !important; 
         border-radius: 6px;
-        box-shadow: 0px 2px 5px rgba(0,0,0,0.05); /* Soft shadow to lift it off the page */
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.05); 
     }
     
     div[data-testid="stAlert"] p, div[data-testid="stAlert"] span {
         color: #041E42 !important;
-        font-weight: 600; /* Makes the success/error message slightly bolder */
+        font-weight: 600; 
     }
 
     /* --- TOAST POP-UPS (Bottom right notifications) --- */
@@ -91,7 +94,7 @@ st.markdown("""
     }
     
     div[data-testid="stToast"] p, div[data-testid="stToast"] span {
-        color: #FFFFFF !important; /* White text on dark blue pop-up */
+        color: #FFFFFF !important; 
     }
 
     /* --- FORM CONTAINER --- */
