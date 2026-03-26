@@ -1651,7 +1651,6 @@ else:
                         )
                         
                         # Find the actual suffix to reconstruct the sheet title
-                        # If selected_bump is 'Yes', use 'Round 1 Matches'. If 'No', use 'Rotation Flow'.
                         actual_suffix = [s for s, b in suffix_map.items() if b == selected_bump][0]
                         target_sheet_title = f"Party {selected_party} {actual_suffix}"
                         
@@ -1665,22 +1664,49 @@ else:
                             # Convert to DataFrame (all as string)
                             df_to_edit = pd.DataFrame(raw_data).astype(str)
                             
-                            # 5. Render Editor
+                            # 5. Render Editor & Search Logic
                             if not df_to_edit.empty:
+                                
+                                # --- NEW: Search Functionality ---
+                                search_query = st.text_input("🔍 Search within this sheet:", "", key=f"search_{selected_party}")
+                                
+                                if search_query:
+                                    # Filter rows where ANY column contains the search query (case-insensitive)
+                                    mask = df_to_edit.apply(lambda row: row.astype(str).str.contains(search_query, case=False).any(), axis=1)
+                                    display_df = df_to_edit[mask]
+                                    
+                                    # Disable adding/deleting rows while searching to protect index alignment
+                                    dynamic_rows_setting = "fixed"
+                                    st.caption("⚠️ *Row additions and deletions are disabled while search is active.*")
+                                else:
+                                    display_df = df_to_edit.copy()
+                                    dynamic_rows_setting = "dynamic"
+                                # ---------------------------------
+
                                 edited_df = st.data_editor(
-                                    df_to_edit, 
+                                    display_df, 
                                     use_container_width=True, 
                                     hide_index=True,
-                                    num_rows="dynamic",
+                                    num_rows=dynamic_rows_setting,
                                     key=f"editor_{selected_party}_{selected_bump}"
                                 )
 
                                 # 6. Save Button
                                 if st.button("Save Changes to Google Drive"):
                                     with st.spinner(f"Saving to '{target_sheet_title}'..."):
+                                        
+                                        # --- NEW: Merge changes if a search filter was active ---
+                                        final_df_to_save = df_to_edit.copy()
+                                        if search_query:
+                                            # Update the main dataframe with only the edited filtered rows
+                                            final_df_to_save.update(edited_df)
+                                        else:
+                                            final_df_to_save = edited_df
+                                        # --------------------------------------------------------
+
                                         save_success = save_party_to_gsheet(
                                             selected_party, 
-                                            edited_df, 
+                                            final_df_to_save, 
                                             specific_title=target_sheet_title
                                         )
                                         
@@ -1688,7 +1714,7 @@ else:
                                             # Update Session State if it exists
                                             if "match_results" in st.session_state and st.session_state.match_results:
                                                 if "preview_data" in st.session_state.match_results:
-                                                    st.session_state.match_results["preview_data"][selected_party] = edited_df
+                                                    st.session_state.match_results["preview_data"][selected_party] = final_df_to_save
                                             
                                             # Regenerate ZIP file
                                             regenerate_zip_from_changes()
@@ -1706,4 +1732,3 @@ else:
 
             except Exception as e:
                 st.error(f"❌ Connection Error: {e}")
-
