@@ -32,24 +32,29 @@ st.markdown("""
         font-weight: bold;
     }
     
-    /* --- HEADER ICONS & BACKGROUND --- */
+    /* --- HEADER ICONS & BACKGROUND FIX --- */
     header[data-testid="stHeader"] {
         background-color: #E6F0FA !important; 
     }
     
+    /* Make all standard text dark blue */
     header[data-testid="stHeader"] * {
         color: #041E42 !important;
     }
 
+    /* Remove the weird box borders from the SVG containers */
     header[data-testid="stHeader"] svg {
-        stroke: #041E42 !important;
-        fill: transparent !important; 
+        fill: transparent !important;
+        stroke: none !important; 
     }
 
-    header[data-testid="stHeader"] a svg {
+    /* Fill the actual icon shapes (Star, Pencil, GitHub, Menu dots) with dark blue */
+    header[data-testid="stHeader"] svg path,
+    header[data-testid="stHeader"] svg circle {
         fill: #041E42 !important;
         stroke: none !important;
     }
+    /* ------------------------------------- */
 
     /* Make headers PSU Navy Blue */
     h1, h2, h3, h4, h5, h6 {
