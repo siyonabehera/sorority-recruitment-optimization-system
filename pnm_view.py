@@ -69,30 +69,38 @@ st.markdown("""
         font-weight: 500;
     }
     
+    /* --- NEW FIX: DISABLED INPUT FIELDS --- */
+    /* Force the autofilled/disabled text to be navy blue instead of pale gray */
+    div[data-baseweb="input"] input[disabled],
+    div[data-baseweb="textarea"] textarea[disabled] {
+        color: #041E42 !important;
+        -webkit-text-fill-color: #041E42 !important; /* Override browser defaults for disabled text */
+        opacity: 1 !important; /* Prevent the text from being faded out */
+    }
+    /* --------------------------------------- */
+
     /* Change border color slightly when user clicks to type */
     div[data-baseweb="input"] > div:focus-within,
     div[data-baseweb="textarea"] > div:focus-within {
         border: 2px solid #041E42 !important; 
     }
 
-    /* --- CRITICAL FIX: DROPDOWN MENU (POPOVER) STYLING --- */
-    /* This styles the list of options that appears when you click a select box */
+    /* --- DROPDOWN MENU (POPOVER) STYLING --- */
     div[data-baseweb="popover"] ul {
-        background-color: #E6F0FA !important; /* Matches the input box light blue */
+        background-color: #E6F0FA !important; 
     }
     
     div[data-baseweb="popover"] ul li, 
     div[data-baseweb="popover"] ul li span {
-        color: #041E42 !important; /* Forces dropdown text to be Navy Blue */
+        color: #041E42 !important; 
     }
-    /* Hover effect for the dropdown items */
+    
     div[data-baseweb="popover"] ul li:hover {
         background-color: #FFFFFF !important; 
     }
     /* ------------------------------------- */
 
     /* --- BUTTON STYLING --- */
-    /* Inverting button to be white with navy text */
     .stButton>button {
         background-color: #FFFFFF;
         color: #041E42 !important;
@@ -114,22 +122,20 @@ st.markdown("""
     }
     
     /* --- ALERT BOXES (Success, Error, Info, Warning) --- */
-    /* Keeping alerts white for high contrast against the navy background */
     div[data-testid="stAlert"] {
         background-color: #FFFFFF !important; 
         border: 1px solid #FFFFFF !important;
-        border-left: 6px solid #1E407C !important; /* Lighter blue accent */
+        border-left: 6px solid #1E407C !important; 
         border-radius: 6px;
         box-shadow: 0px 2px 5px rgba(0,0,0,0.2); 
     }
     
     div[data-testid="stAlert"] p, div[data-testid="stAlert"] span {
-        color: #041E42 !important; /* Navy text inside the white alert */
+        color: #041E42 !important; 
         font-weight: 600; 
     }
 
     /* --- TOAST POP-UPS (Bottom right notifications) --- */
-    /* Toasts become light blue to contrast the dark background */
     div[data-testid="stToast"] {
         background-color: #E6F0FA !important;
         border: 2px solid #041E42 !important;
@@ -142,7 +148,6 @@ st.markdown("""
     }
 
     /* --- FORM CONTAINER --- */
-    /* Form background slightly lighter navy to separate from main background */
     div[data-testid="stForm"] {
         background-color: #112A4F;
         border: 1px solid #1E407C; 
