@@ -15,88 +15,100 @@ st.set_page_config(page_title="PNM Recruitment Form", layout="wide")
 # Injecting Custom Penn State CSS Theme
 st.markdown("""
 <style>
-    /* Main background changed to a soft light blue */
+    /* Main background changed to Penn State Navy Blue */
     .stApp {
-        background-color: #E6F0FA; 
+        background-color: #041E42; 
     }
     
-    /* Force standard text, list items, and input labels to be dark blue */
+    /* Force standard text, list items, and input labels to be white */
     .stApp p, .stApp label, .stApp li, .stApp div[data-testid="stMarkdownContainer"] {
-        color: #041E42 !important;
+        color: #FFFFFF !important;
     }
 
-    /* Ensure links are structurally obvious */
+    /* Ensure links stand out against the dark background */
     .stApp a {
-        color: #041E42 !important;
+        color: #99CCFF !important; /* Lighter blue for link visibility */
         text-decoration: underline !important;
         font-weight: bold;
     }
     
-    /* --- HEADER BACKGROUND FIX --- */
+    /* --- HEADER FIX --- */
     header[data-testid="stHeader"] {
-        background-color: #E6F0FA !important; 
+        background-color: #041E42 !important; 
     }
-    /* Note: Custom text and icon overrides have been removed so they revert to Streamlit defaults */
+    
+    /* Force header icons and text to be white */
+    header[data-testid="stHeader"] *, 
+    header[data-testid="stHeader"] button,
+    header[data-testid="stHeader"] span,
+    header[data-testid="stHeader"] a {
+        color: #FFFFFF !important;
+    }
     /* ------------------------------------- */
 
-    /* Make headers PSU Navy Blue */
+    /* Make headers White */
     h1, h2, h3, h4, h5, h6 {
-        color: #041E42 !important;
+        color: #FFFFFF !important;
     }
     
     /* --- BUTTON STYLING --- */
+    /* Inverting button to be white with navy text */
     .stButton>button {
-        background-color: #041E42;
+        background-color: #FFFFFF;
+        color: #041E42 !important;
         border-radius: 6px;
-        border: 2px solid #041E42; 
+        border: 2px solid #FFFFFF; 
         padding: 10px 24px;
         font-weight: bold;
     }
     
-    .stButton>button, .stButton>button p, .stButton>button span {
-        color: #FFFFFF !important; 
+    .stButton>button p, .stButton>button span {
+        color: #041E42 !important; 
     }
     
     .stButton>button:hover, .stButton>button:focus {
-        background-color: #1E407C;
-        border: 2px solid #1E407C;
-        box-shadow: 0px 4px 6px rgba(0,0,0,0.3); 
+        background-color: #F0F4F8;
+        border: 2px solid #F0F4F8;
+        box-shadow: 0px 4px 6px rgba(0,0,0,0.5); 
         transform: translateY(-1px); 
     }
     
     /* --- ALERT BOXES (Success, Error, Info, Warning) --- */
+    /* Keeping alerts white for high contrast against the navy background */
     div[data-testid="stAlert"] {
         background-color: #FFFFFF !important; 
-        border: 1px solid #B3B3B3 !important;
-        border-left: 6px solid #041E42 !important; 
+        border: 1px solid #FFFFFF !important;
+        border-left: 6px solid #1E407C !important; /* Lighter blue accent */
         border-radius: 6px;
-        box-shadow: 0px 2px 5px rgba(0,0,0,0.05); 
+        box-shadow: 0px 2px 5px rgba(0,0,0,0.2); 
     }
     
     div[data-testid="stAlert"] p, div[data-testid="stAlert"] span {
-        color: #041E42 !important;
+        color: #041E42 !important; /* Navy text inside the white alert */
         font-weight: 600; 
     }
 
     /* --- TOAST POP-UPS (Bottom right notifications) --- */
+    /* Toasts become light blue to contrast the dark background */
     div[data-testid="stToast"] {
-        background-color: #041E42 !important;
-        border: 2px solid #FFFFFF !important;
+        background-color: #E6F0FA !important;
+        border: 2px solid #041E42 !important;
         border-radius: 8px;
-        box-shadow: 0px 4px 10px rgba(0,0,0,0.2);
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
     }
     
     div[data-testid="stToast"] p, div[data-testid="stToast"] span {
-        color: #FFFFFF !important; 
+        color: #041E42 !important; 
     }
 
     /* --- FORM CONTAINER --- */
+    /* Form background slightly lighter navy to separate from main background */
     div[data-testid="stForm"] {
-        background-color: #FFFFFF;
-        border: 1px solid #B3B3B3; 
+        background-color: #112A4F;
+        border: 1px solid #1E407C; 
         border-radius: 8px; 
         padding: 20px; 
-        box-shadow: 0px 2px 8px rgba(0,0,0,0.05);
+        box-shadow: 0px 4px 10px rgba(0,0,0,0.3);
     }
     
     /* --- HIDE DEFAULT STREAMLIT FOOTER --- */
