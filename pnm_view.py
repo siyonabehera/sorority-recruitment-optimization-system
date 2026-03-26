@@ -12,7 +12,7 @@ from yt_dlp import YoutubeDL
 # --- Page Configuration & Theming ---
 st.set_page_config(page_title="PNM Recruitment Form", layout="wide")
 
-# Injecting Custom Penn State CSS Theme
+# Injecting Custom Penn State CSS Theme (All White Text)
 st.markdown("""
 <style>
     /* Main background changed to Penn State Navy Blue */
@@ -25,9 +25,9 @@ st.markdown("""
         color: #FFFFFF !important;
     }
 
-    /* Ensure links stand out against the dark background */
+    /* Ensure links are white to match the prompt and bolded for visibility */
     .stApp a {
-        color: #99CCFF !important; /* Lighter blue for link visibility */
+        color: #FFFFFF !important; 
         text-decoration: underline !important;
         font-weight: bold;
     }
@@ -56,23 +56,23 @@ st.markdown("""
     div[data-baseweb="input"] > div, 
     div[data-baseweb="textarea"] > div,
     div[data-baseweb="select"] > div {
-        background-color: #E6F0FA !important; /* Soft light blue background */
+        background-color: #112A4F !important; /* Adjusted to a slightly lighter dark blue */
         border: 1px solid #1E407C !important; /* Mid-blue border */
         border-radius: 6px;
     }
     
-    /* Ensure text TYPED inside the boxes is dark navy for readability */
+    /* Ensure text TYPED inside the boxes is white */
     div[data-baseweb="input"] input, 
     div[data-baseweb="textarea"] textarea,
     div[data-baseweb="select"] span {
-        color: #041E42 !important; 
+        color: #FFFFFF !important; 
         font-weight: 500;
     }
 
-    /* Change border color slightly when user clicks to type */
+    /* Change border color to solid white when user clicks to type */
     div[data-baseweb="input"] > div:focus-within,
     div[data-baseweb="textarea"] > div:focus-within {
-        border: 2px solid #041E42 !important; 
+        border: 2px solid #FFFFFF !important; 
     }
 
     /* --- CRITICAL FIX: DISABLED/AUTOFILLED INPUT FIELDS --- */
@@ -80,50 +80,50 @@ st.markdown("""
     input[disabled], 
     textarea:disabled, 
     textarea[disabled] {
-        color: #041E42 !important;
-        -webkit-text-fill-color: #041E42 !important;
-        opacity: 1 !important;
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        opacity: 0.7 !important;
     }
 
     div[aria-disabled="true"], 
     div[aria-disabled="true"] span, 
     div[aria-disabled="true"] input {
-        color: #041E42 !important;
-        -webkit-text-fill-color: #041E42 !important;
-        opacity: 1 !important;
+        color: #FFFFFF !important;
+        -webkit-text-fill-color: #FFFFFF !important;
+        opacity: 0.7 !important;
     }
 
     div[aria-disabled="true"] > div,
     div[aria-disabled="true"] {
-        background-color: #E6F0FA !important; 
+        background-color: #112A4F !important; 
     }
     /* ------------------------------------------------------- */
 
     /* --- NEW FIX: DROPDOWN MENU OPTIONS --- */
     /* Target the floating listbox and its options directly by their ARIA roles */
     ul[role="listbox"] {
-        background-color: #E6F0FA !important; 
+        background-color: #112A4F !important; 
     }
     
     /* Target the individual options inside the dropdown */
     li[role="option"], 
     li[role="option"] span {
-        color: #041E42 !important; 
+        color: #FFFFFF !important; 
         background-color: transparent !important;
     }
     
     /* Hover effect so users can see what they are selecting */
     li[role="option"]:hover, 
     li[role="option"][aria-selected="true"] {
-        background-color: #FFFFFF !important; 
-        color: #041E42 !important; 
+        background-color: #1E407C !important; 
+        color: #FFFFFF !important; 
     }
     /* ------------------------------------- */
 
     /* --- BUTTON STYLING --- */
     .stButton>button {
-        background-color: #FFFFFF;
-        color: #041E42 !important;
+        background-color: #1E407C; /* Secondary blue */
+        color: #FFFFFF !important;
         border-radius: 6px;
         border: 2px solid #FFFFFF; 
         padding: 10px 24px;
@@ -131,40 +131,40 @@ st.markdown("""
     }
     
     .stButton>button p, .stButton>button span {
-        color: #041E42 !important; 
+        color: #FFFFFF !important; 
     }
     
     .stButton>button:hover, .stButton>button:focus {
-        background-color: #F0F4F8;
-        border: 2px solid #F0F4F8;
-        box-shadow: 0px 4px 6px rgba(0,0,0,0.5); 
+        background-color: #112A4F;
+        border: 2px solid #FFFFFF;
+        box-shadow: 0px 4px 6px rgba(255,255,255,0.2); 
         transform: translateY(-1px); 
     }
     
     /* --- ALERT BOXES (Success, Error, Info, Warning) --- */
     div[data-testid="stAlert"] {
-        background-color: #FFFFFF !important; 
-        border: 1px solid #FFFFFF !important;
-        border-left: 6px solid #1E407C !important; 
+        background-color: #112A4F !important; 
+        border: 1px solid #1E407C !important;
+        border-left: 6px solid #FFFFFF !important; 
         border-radius: 6px;
         box-shadow: 0px 2px 5px rgba(0,0,0,0.2); 
     }
     
     div[data-testid="stAlert"] p, div[data-testid="stAlert"] span {
-        color: #041E42 !important; 
+        color: #FFFFFF !important; 
         font-weight: 600; 
     }
 
     /* --- TOAST POP-UPS (Bottom right notifications) --- */
     div[data-testid="stToast"] {
-        background-color: #E6F0FA !important;
-        border: 2px solid #041E42 !important;
+        background-color: #112A4F !important;
+        border: 2px solid #1E407C !important;
         border-radius: 8px;
         box-shadow: 0px 4px 10px rgba(0,0,0,0.5);
     }
     
     div[data-testid="stToast"] p, div[data-testid="stToast"] span {
-        color: #041E42 !important; 
+        color: #FFFFFF !important; 
     }
 
     /* --- FORM CONTAINER --- */
