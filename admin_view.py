@@ -1513,19 +1513,24 @@ else:
                                 save_party_to_gsheet(party, export_df, specific_title=f"Party {party} {sheet_suffix}")
                                 time.sleep(1.5)
 
+                                
+                                flow_strong_count = len(df_glob_flow[df_glob_flow['Ranking'] <= 2])
+                                greedy_strong_count = len(df_glob_greedy[df_glob_greedy['Ranking'] <= 2])
                                 flow_costs = df_glob_flow['Match Cost'].dropna()
                                 greedy_costs = df_glob_greedy['Match Cost'].dropna()
                                 summary_data = {
-                                    'Metric': ['Total Cost', 'Average Cost', 'Min Cost', 'Max Cost', 'Std Dev'],
+                                    'Metric': ['Total Cost', 'Average Cost', 'Min Cost', 'Max Cost', 'Std Dev', 'Strong Recruiter Teams'],
                                     'Global Network Flow': [
                                         round(flow_costs.sum(), 4), round(flow_costs.mean(), 4) if not flow_costs.empty else 0,
                                         round(flow_costs.min(), 4) if not flow_costs.empty else 0, round(flow_costs.max(), 4) if not flow_costs.empty else 0,
-                                        round(flow_costs.std(), 4) if len(flow_costs) > 1 else 0
+                                        round(flow_costs.std(), 4) if len(flow_costs) > 1 else 0,
+                                        flow_strong_count
                                     ],
                                     'Global Greedy': [
                                         round(greedy_costs.sum(), 4), round(greedy_costs.mean(), 4) if not greedy_costs.empty else 0,
                                         round(greedy_costs.min(), 4) if not greedy_costs.empty else 0, round(greedy_costs.max(), 4) if not greedy_costs.empty else 0,
-                                        round(greedy_costs.std(), 4) if len(greedy_costs) > 1 else 0
+                                        round(greedy_costs.std(), 4) if len(greedy_costs) > 1 else 0,
+                                        greedy_strong_count
                                     ]
                                 }
                                 summary_df = pd.DataFrame(summary_data)
