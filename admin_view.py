@@ -479,7 +479,19 @@ def get_max_party_count():
 def auto_adjust_columns(writer, sheet_name, df):
     worksheet = writer.sheets[sheet_name]
     for idx, col in enumerate(df.columns):
-        max_len = max(df[col].astype(str).map(len).max(), len(str(col))) + 2
+        # Fallback width if the dataframe is empty
+        if df.empty:
+            max_len = len(str(col)) + 2
+        else:
+            # Use pandas-native .str.len() instead of standard Python map(len)
+            max_data_len = df[col].astype(str).str.len().max()
+            
+            # Handle edge cases where the column might be entirely NaN/Null
+            if pd.isna(max_data_len):
+                max_data_len = 0
+                
+            max_len = max(int(max_data_len), len(str(col))) + 2
+            
         worksheet.set_column(idx, idx, max_len)
 
 # --- REGENERATION HELPER FOR TAB 8 ---
