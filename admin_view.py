@@ -1325,7 +1325,8 @@ else:
                                         'p_node': p_data['node_id'], 't_node': t_data['node_id'],
                                         'cost': final_cost, 'pnm_rank': p_data['rank'],
                                         'team_members': t_data['joined_names'],
-                                        'reasons': " ".join(reasons_list) if reasons_list else "No specific match"
+                                        'reasons': " ".join(reasons_list) if reasons_list else "No specific match",
+                                        'team_ranking': to_float(t_data['row_data'].get('Ranking', 4.0))
                                     })
                             potential_pairs.sort(key=lambda x: (x['cost'], -x['pnm_rank']))
                             matchable_pnm_ids = {p['p_id'] for p in potential_pairs}
@@ -1354,7 +1355,8 @@ else:
                                                     reason = "Conflict List" if p_data['id'] not in pnm_ids_with_potential else "Capacity Reached"
                                                     global_flow_results.append({
                                                         'PNM ID': p_data['id'], 'PNM Name': p_data['name'],
-                                                        'Bump Team Members': "NO MATCH", 'Match Cost': None, 'Reason': reason
+                                                        'Bump Team Members': "NO MATCH", 'Match Cost': None, 'Reason': reason,
+                                                        'Ranking': None
                                                     })
                                                 else:
                                                     match_info = pair_lookup.get((p_node, t_node))
@@ -1362,7 +1364,8 @@ else:
                                                         global_flow_results.append({
                                                             'PNM ID': p_data['id'], 'PNM Name': p_data['name'],
                                                             'Bump Team Members': match_info['team_members'], 'Match Cost': round(match_info['cost'], 4),
-                                                            'Reason': match_info['reasons']
+                                                            'Reason': match_info['reasons'],
+                                                            'Ranking': match_info['team_ranking']
                                                         })
                                                         assignments_map_flow[match_info['t_idx']].append(match_info)
                             except nx.NetworkXUnfeasible: st.warning(f"Global Flow Unfeasible for Party {party}")
@@ -1378,7 +1381,8 @@ else:
                                         team_counts[pair['t_idx']] += 1
                                         global_greedy_results.append({
                                             'PNM ID': pair['p_id'], 'PNM Name': pair['p_name'],
-                                            'Bump Team Members': pair['team_members'], 'Match Cost': round(pair['cost'], 4), 'Reason': pair['reasons']
+                                            'Bump Team Members': pair['team_members'], 'Match Cost': round(pair['cost'], 4), 'Reason': pair['reasons'],
+                                            'Ranking': pair['team_ranking']
                                         })
                                         assignments_map_greedy[pair['t_idx']].append(pair)
                             for p_data in pnm_list:
@@ -1387,7 +1391,8 @@ else:
                                     reason = "Conflict List" if was_blocked else "Capacity Reached (Greedy)"
                                     global_greedy_results.append({
                                         'PNM ID': p_data['id'], 'PNM Name': p_data['name'],
-                                        'Bump Team Members': "NO MATCH", 'Match Cost': None, 'Reason': reason
+                                        'Bump Team Members': "NO MATCH", 'Match Cost': None, 'Reason': reason,
+                                        'Ranking': None
                                     })
 
                             def run_internal_rotation(assignment_map, method='flow'):
