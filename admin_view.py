@@ -479,7 +479,19 @@ def get_max_party_count():
 def auto_adjust_columns(writer, sheet_name, df):
     worksheet = writer.sheets[sheet_name]
     for idx, col in enumerate(df.columns):
-        max_len = max(df[col].astype(str).map(len).max(), len(str(col))) + 2
+        # Fallback width if the dataframe is empty
+        if df.empty:
+            max_len = len(str(col)) + 2
+        else:
+            # Use pandas-native .str.len() instead of standard Python map(len)
+            max_data_len = df[col].astype(str).str.len().max()
+            
+            # Handle edge cases where the column might be entirely NaN/Null
+            if pd.isna(max_data_len):
+                max_data_len = 0
+                
+            max_len = max(int(max_data_len), len(str(col))) + 2
+            
         worksheet.set_column(idx, idx, max_len)
 
 # --- REGENERATION HELPER FOR TAB 8 ---
@@ -1325,7 +1337,8 @@ else:
                                         'p_node': p_data['node_id'], 't_node': t_data['node_id'],
                                         'cost': final_cost, 'pnm_rank': p_data['rank'],
                                         'team_members': t_data['joined_names'],
-                                        'reasons': " ".join(reasons_list) if reasons_list else "No specific match"
+                                        'reasons': " ".join(reasons_list) if reasons_list else "No specific match",
+                                        'team_ranking': to_float(t_data['row_data'].get('Ranking', 4.0))
                                     })
                             potential_pairs.sort(key=lambda x: (x['cost'], -x['pnm_rank']))
                             matchable_pnm_ids = {p['p_id'] for p in potential_pairs}
@@ -1354,7 +1367,8 @@ else:
                                                     reason = "Conflict List" if p_data['id'] not in pnm_ids_with_potential else "Capacity Reached"
                                                     global_flow_results.append({
                                                         'PNM ID': p_data['id'], 'PNM Name': p_data['name'],
-                                                        'Bump Team Members': "NO MATCH", 'Match Cost': None, 'Reason': reason
+                                                        'Bump Team Members': "NO MATCH", 'Match Cost': None, 'Reason': reason,
+                                                        'Ranking': None
                                                     })
                                                 else:
                                                     match_info = pair_lookup.get((p_node, t_node))
@@ -1362,7 +1376,8 @@ else:
                                                         global_flow_results.append({
                                                             'PNM ID': p_data['id'], 'PNM Name': p_data['name'],
                                                             'Bump Team Members': match_info['team_members'], 'Match Cost': round(match_info['cost'], 4),
-                                                            'Reason': match_info['reasons']
+                                                            'Reason': match_info['reasons'],
+                                                            'Ranking': match_info['team_ranking']
                                                         })
                                                         assignments_map_flow[match_info['t_idx']].append(match_info)
                             except nx.NetworkXUnfeasible: st.warning(f"Global Flow Unfeasible for Party {party}")
@@ -1378,7 +1393,8 @@ else:
                                         team_counts[pair['t_idx']] += 1
                                         global_greedy_results.append({
                                             'PNM ID': pair['p_id'], 'PNM Name': pair['p_name'],
-                                            'Bump Team Members': pair['team_members'], 'Match Cost': round(pair['cost'], 4), 'Reason': pair['reasons']
+                                            'Bump Team Members': pair['team_members'], 'Match Cost': round(pair['cost'], 4), 'Reason': pair['reasons'],
+                                            'Ranking': pair['team_ranking']
                                         })
                                         assignments_map_greedy[pair['t_idx']].append(pair)
                             for p_data in pnm_list:
@@ -1387,7 +1403,8 @@ else:
                                     reason = "Conflict List" if was_blocked else "Capacity Reached (Greedy)"
                                     global_greedy_results.append({
                                         'PNM ID': p_data['id'], 'PNM Name': p_data['name'],
-                                        'Bump Team Members': "NO MATCH", 'Match Cost': None, 'Reason': reason
+                                        'Bump Team Members': "NO MATCH", 'Match Cost': None, 'Reason': reason,
+                                        'Ranking': None
                                     })
 
                             def run_internal_rotation(assignment_map, method='flow'):
@@ -1513,19 +1530,24 @@ else:
                                 save_party_to_gsheet(party, export_df, specific_title=f"Party {party} {sheet_suffix}")
                                 time.sleep(1.5)
 
+                                
+                                flow_strong_count = len(df_glob_flow[df_glob_flow['Ranking'] <= 2])
+                                greedy_strong_count = len(df_glob_greedy[df_glob_greedy['Ranking'] <= 2])
                                 flow_costs = df_glob_flow['Match Cost'].dropna()
                                 greedy_costs = df_glob_greedy['Match Cost'].dropna()
                                 summary_data = {
-                                    'Metric': ['Total Cost', 'Average Cost', 'Min Cost', 'Max Cost', 'Std Dev'],
+                                    'Metric': ['Total Cost', 'Average Cost', 'Min Cost', 'Max Cost', 'Std Dev', 'Strong Recruiter Teams'],
                                     'Global Network Flow': [
                                         round(flow_costs.sum(), 4), round(flow_costs.mean(), 4) if not flow_costs.empty else 0,
                                         round(flow_costs.min(), 4) if not flow_costs.empty else 0, round(flow_costs.max(), 4) if not flow_costs.empty else 0,
-                                        round(flow_costs.std(), 4) if len(flow_costs) > 1 else 0
+                                        round(flow_costs.std(), 4) if len(flow_costs) > 1 else 0,
+                                        flow_strong_count
                                     ],
                                     'Global Greedy': [
                                         round(greedy_costs.sum(), 4), round(greedy_costs.mean(), 4) if not greedy_costs.empty else 0,
                                         round(greedy_costs.min(), 4) if not greedy_costs.empty else 0, round(greedy_costs.max(), 4) if not greedy_costs.empty else 0,
-                                        round(greedy_costs.std(), 4) if len(greedy_costs) > 1 else 0
+                                        round(greedy_costs.std(), 4) if len(greedy_costs) > 1 else 0,
+                                        greedy_strong_count
                                     ]
                                 }
                                 summary_df = pd.DataFrame(summary_data)
