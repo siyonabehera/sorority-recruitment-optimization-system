@@ -1397,9 +1397,12 @@ else:
                                             'Ranking': pair['team_ranking']
                                         })
                                         assignments_map_greedy[pair['t_idx']].append(pair)
+                                        
+                            unblocked_pnm_ids = {p['p_id'] for p in potential_pairs}
+                        
                             for p_data in pnm_list:
                                 if p_data['id'] not in matched_pnm_ids:
-                                    was_blocked = not any(p['p_id'] == p_data['id'] for p in potential_pairs)
+                                    was_blocked = p_data['id'] not in unblocked_pnm_ids
                                     reason = "Conflict List" if was_blocked else "Capacity Reached (Greedy)"
                                     global_greedy_results.append({
                                         'PNM ID': p_data['id'], 'PNM Name': p_data['name'],
