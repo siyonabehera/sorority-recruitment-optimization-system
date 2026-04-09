@@ -869,7 +869,7 @@ else:
         col_p1, col_p2 = st.columns([3, 1])
         with col_p1:
             selected_parties_to_show = st.multiselect(
-                "Select Parties to Publish to Members (Saved to Settings):", 
+                "Select Parties to Publish to Members:", 
                 options=party_opts,
                 format_func=lambda x: f"Party {x}", 
                 default=[] 
@@ -881,7 +881,7 @@ else:
             if st.button("Save Published Parties"):
                 with st.spinner("Saving settings..."):
                     if update_visible_parties(selected_parties_to_show):
-                        st.success("✅ Saved!")
+                        st.success("Saved!")
                     else:
                         st.error("Error saving.")
 
