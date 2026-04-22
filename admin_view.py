@@ -989,7 +989,7 @@ else:
                     st.stop()
 
                 EXTRACTION_MODEL = "gemini-3.1-flash-lite-preview"
-                EXTRACTION_BATCH_SIZE = 40
+                EXTRACTION_BATCH_SIZE = 30
                 EXTRACTION_RETRY_ATTEMPTS = 12
                 EXTRACTION_RETRY_DELAY = 15
                 MIN_SECONDS_PER_REQUEST = 6.5
@@ -997,8 +997,6 @@ else:
                 EXTRACTION_SYSTEM_PROMPT = """You are a recruitment matching assistant for a college sorority.
                 Read each person's academic and personal profile and extract normalized semantic tags
                 that will be used to match them with compatible people.
-                EXISTING TAGS:
-                {existing_tags}
 
                 TAG RULES:
                 - Lowercase with underscores (e.g. pre_med, greek_life, east_coast)
@@ -1007,8 +1005,6 @@ else:
                 - Capture shared background: "small town girl", "rural upbringing" → small_town_background
                 - Capture meaningful values: "first gen student", "first generation college" → first_generation
                 - Include: academic field, career direction, sports/athletics, hobbies, org involvement, background
-                - IF AN EXISTING TAG FITS perfectly, you MUST use it rather than creating a new variation.
-                - Only invent a new tag if the existing tags do not cover the person's profile.
                 - Return 5–12 tags per person
                 - BE CONSISTENT: if two people have similar profiles they MUST share tags — this is critical
                   for the matching algorithm to work correctly
@@ -1025,11 +1021,9 @@ else:
                             parts.append(f"{field}: {val}")
                     return "\n".join(parts) if parts else "No profile information provided."
 
-                def _extract_attrs_batch(profiles: list, master_tags: set) -> list:
+                def _extract_attrs_batch(profiles: list) -> list:
                     numbered = [f"Person {i+1}:\n{p}" for i, p in enumerate(profiles)]
-                    # Format the prompt with the running list of tags
-                    tags_str = ", ".join(sorted(master_tags)) if master_tags else "None yet. You are the first batch, establish a good baseline."
-                    content = EXTRACTION_SYSTEM_PROMPT.format(existing_tags=tags_str) + "\n\n" + "\n\n".join(numbered)
+                    content = EXTRACTION_SYSTEM_PROMPT + "\n\n" + "\n\n".join(numbered)
 
                     for attempt in range(1, EXTRACTION_RETRY_ATTEMPTS + 1):
                         try:
@@ -1064,41 +1058,106 @@ else:
                                 status_container.error("Extraction failed for this batch — assigning empty tags.")
                                 return [set() for _ in profiles]
 
-                def process_dataframe_llm(df, id_col_name, entity_name, master_tags):
+                def process_dataframe_llm(df, id_col_name, entity_name):
                     llm_attrs = {}
                     rows = df.to_dict('records')
                     total_batches = (len(rows) + EXTRACTION_BATCH_SIZE - 1) // EXTRACTION_BATCH_SIZE
-                    progress_bar = st.progress(0)
                     
+                    progress_bar = st.progress(0)
+
                     for batch_idx, batch_start in enumerate(range(0, len(rows), EXTRACTION_BATCH_SIZE)):
                         batch_start_time = time.time()
                         batch = rows[batch_start: batch_start + EXTRACTION_BATCH_SIZE]
                         profiles = [_build_profile_str(r) for r in batch]
                         end = min(batch_start + EXTRACTION_BATCH_SIZE, len(rows))
+
                         status_container.info(f"Extracting {entity_name} Semantic Tags via Gemini: {batch_start+1}–{end} of {len(rows)}...")
-                        
-                        tag_lists = _extract_attrs_batch(profiles, master_tags)
-                        
+                        tag_lists = _extract_attrs_batch(profiles)
+
                         for i, row in enumerate(batch):
-                            extracted_tags = tag_lists[i]
-                            llm_attrs[row[id_col_name]] = extracted_tags
-                            master_tags.update(extracted_tags) 
-                        
+                            llm_attrs[row[id_col_name]] = tag_lists[i]
+
+                        # Update progress bar
                         progress_bar.progress((batch_idx + 1) / total_batches)
+
                         elapsed = time.time() - batch_start_time
                         sleep_time = max(0.0, MIN_SECONDS_PER_REQUEST - elapsed)
                         if batch_start + EXTRACTION_BATCH_SIZE < len(rows):
                             time.sleep(sleep_time)
-                    progress_bar.empty()
+
+                    progress_bar.empty() # Remove progress bar when done
                     return llm_attrs
 
-                shared_vocabulary = set()
-                mem_llm_attrs = process_dataframe_llm(df_mem, 'Sorority ID', 'Members', shared_vocabulary)
-                pnm_llm_attrs = process_dataframe_llm(pnm_clean, 'PNM ID', 'PNMs', shared_vocabulary)
+                # Execute LLM Extraction
+                mem_llm_attrs = process_dataframe_llm(df_mem, 'Sorority ID', 'Members')
+                pnm_llm_attrs = process_dataframe_llm(pnm_clean, 'PNM ID', 'PNMs')
+                
+                # --- NEW STEP: CLUSTER UNIQUE TAGS ---
+                all_unique_tags = set()
+                for tags in mem_llm_attrs.values():
+                    all_unique_tags.update(tags)
+                for tags in pnm_llm_attrs.values():
+                    all_unique_tags.update(tags)
+
+                def _cluster_tags_llm(unique_tags: set) -> dict:
+                    if not unique_tags:
+                        return {}
+                    
+                    status_container.info("Clustering semantic tags to ensure global consistency...")
+                    
+                    CLUSTERING_PROMPT = """You are a data standardization assistant. 
+                    I will give you a list of raw profile tags extracted from a recruitment database. 
+                    Your job is to cluster them by grouping similar tags, synonyms, or highly related concepts under a single standardized master tag.
+                    
+                    RULES:
+                    - Master tags must be lowercase with underscores (e.g., 'pre_med').
+                    - Consolidate aggressive variations (e.g., 'med_school_bound', 'future_doctor', 'premed' -> 'healthcare_career').
+                    - Consolidate hobbies/sports (e.g., 'jv_volleyball', 'club_vball' -> 'volleyball').
+                    - You MUST return a JSON dictionary mapping the original raw tag to the chosen master tag.
+                    - Every raw tag provided MUST exist as a key in the output JSON.
+                    - Return ONLY the JSON object. No markdown formatting, no explanations."""
+                    
+                    content = CLUSTERING_PROMPT + f"\n\nRAW TAGS TO CLUSTER:\n{list(unique_tags)}"
+                    
+                    for attempt in range(1, EXTRACTION_RETRY_ATTEMPTS + 1):
+                        try:
+                            response = client_extract.models.generate_content(
+                                model=EXTRACTION_MODEL,
+                                contents=content,
+                                config=types.GenerateContentConfig(
+                                    temperature=0.0, # Zero temperature is best for mapping tasks
+                                    response_mime_type="application/json", # Forces pure JSON output
+                                    max_output_tokens=8192
+                                )
+                            )
+                            raw = response.text.strip()
+                            # Strip markdown just in case the model ignores response_mime_type
+                            raw = re.sub(r"^```[a-z]*\n?", "", raw).rstrip("`").strip()
+                            tag_mapping = json.loads(raw)
+                            
+                            # Safety Check: Ensure all tags were mapped. If the LLM missed any, map them to themselves.
+                            for tag in unique_tags:
+                                if tag not in tag_mapping:
+                                    tag_mapping[tag] = tag
+                                    
+                            return tag_mapping
+                            
+                        except Exception as e:
+                            wait = (2 ** attempt) + random.uniform(1, 5)
+                            status_container.warning(f"Clustering Error: {e}. Retrying in {wait:.1f}s...")
+                            if attempt < EXTRACTION_RETRY_ATTEMPTS:
+                                time.sleep(wait)
+                            else:
+                                status_container.error("Tag clustering failed. Using unclustered raw tags.")
+                                return {t: t for t in unique_tags} # Fallback to original tags if it fails
+                
+                # Execute Clustering
+                master_tag_mapping = _cluster_tags_llm(all_unique_tags)
+
                 status_container.success("Geographical and Semantic Attribute extraction complete! Finalizing...")
 
-                # --- 5. FINALIZE ATTRIBUTES ---
-                def finalize_attributes_llm(df, id_col, geo_tags, llm_tags):
+                # --- 5. FINALIZE ATTRIBUTES (UPDATED WITH MAPPING) ---
+                def finalize_attributes_llm(df, id_col, geo_tags, llm_tags, tag_mapping):
                     final_attrs = {row[id_col]: set() for _, row in df.iterrows()}
                     for idx, row in df.iterrows():
                         pid = row[id_col]
@@ -1110,14 +1169,16 @@ else:
                         # Add Geo tag
                         if pid in geo_tags: final_attrs[pid].add(geo_tags[pid])
                             
-                        # Add Gemini LLM tags
-                        if pid in llm_tags: final_attrs[pid].update(llm_tags[pid])
+                        # Add Gemini LLM tags (Mapped through the clustered dictionary)
+                        if pid in llm_tags:
+                            mapped_tags = {tag_mapping.get(t, t) for t in llm_tags[pid]}
+                            final_attrs[pid].update(mapped_tags)
                             
                     return df[id_col].map(lambda x: ", ".join(final_attrs.get(x, set())))
 
                 # Append to original DataFrames
-                member_interest['attributes_for_matching'] = finalize_attributes_llm(df_mem, 'Sorority ID', mem_geo_tags, mem_llm_attrs)
-                pnm_intial_interest['attributes_for_matching'] = finalize_attributes_llm(pnm_clean, 'PNM ID', pnm_geo_tags, pnm_llm_attrs)
+                member_interest['attributes_for_matching'] = finalize_attributes_llm(df_mem, 'Sorority ID', mem_geo_tags, mem_llm_attrs, master_tag_mapping)
+                pnm_intial_interest['attributes_for_matching'] = finalize_attributes_llm(pnm_clean, 'PNM ID', pnm_geo_tags, pnm_llm_attrs, master_tag_mapping)
                 
                 # --- 6. WRITE BACK TO GOOGLE SHEETS ---
                 with st.spinner("Writing finalized attributes back to Google Sheets..."):
@@ -1127,14 +1188,14 @@ else:
                         pnm_success = update_worksheet_data("PNM Information", pnm_intial_interest)
                         
                         if mem_success and pnm_success:
-                            status_container.success("✅ Attributes successfully preprocessed and saved to Google Sheets!")
+                            status_container.success("Attributes successfully preprocessed and saved to Google Sheets!")
                             
                             # CRITICAL: Clear the data cache so that when the user clicks 
                             # "Run Matching Algorithm", the app pulls the fresh data containing the new columns!
                             get_data.clear()
                             load_google_sheet_data.clear()
                         else:
-                            status_container.error("⚠️ There was an issue writing the data to the sheets. Check your console logs.")
+                            status_container.error("There was an issue writing the data to the sheets. Check your console logs.")
                             
                     except Exception as e:
                         status_container.error(f"Error writing to Google Sheets: {e}")
