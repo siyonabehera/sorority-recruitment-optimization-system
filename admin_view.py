@@ -954,6 +954,22 @@ else:
                         return coords_map[matches[0]][0], coords_map[matches[0]][1]
                     return None, None
 
+                def get_coords_offline_local(hometown_str, coords_map, keys_list):
+                    if not isinstance(hometown_str, str): return None, None
+                    key = hometown_str.strip().upper()
+                    if key in coords_map:
+                        return coords_map[key][0], coords_map[key][1]
+                    if "," in key:
+                        city_part, state_part = key.split(",", 1)
+                        state_code = state_part.strip()
+                        narrowed_keys = [k for k in keys_list if k.endswith(f", {state_code}")]
+                        
+                        if narrowed_keys:
+                            matches = difflib.get_close_matches(key, narrowed_keys, n=1, cutoff=0.8)
+                            if matches:
+                                return coords_map[matches[0]][0], coords_map[matches[0]][1]
+                    return None, None
+
                 # --- 3. GEO CLUSTERING ---
                 status_container.info("Processing offline geographical clusters...")
                 all_coords, geo_tracker = [], []
