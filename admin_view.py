@@ -989,7 +989,7 @@ else:
                     st.stop()
 
                 EXTRACTION_MODEL = "gemini-3.1-flash-lite-preview"
-                EXTRACTION_BATCH_SIZE = 15
+                EXTRACTION_BATCH_SIZE = 40
                 EXTRACTION_RETRY_ATTEMPTS = 12
                 EXTRACTION_RETRY_DELAY = 15
                 MIN_SECONDS_PER_REQUEST = 6.5
@@ -1038,7 +1038,7 @@ else:
                                 contents=content,
                                 config=types.GenerateContentConfig(
                                     temperature=0.1,
-                                    max_output_tokens=2000
+                                    max_output_tokens=8192
                                 )
                             )
                             raw = response.text.strip()
