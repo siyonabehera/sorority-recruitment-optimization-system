@@ -943,17 +943,6 @@ else:
                 pnm_clean = pnm_intial_interest.rename(columns=pnm_col_map)
                 df_mem = member_interest.copy()
 
-                # --- 2. LOCAL OFFLINE HELPER ---
-                def get_coords_offline_local(hometown_str, coords_map, keys_list):
-                    if not isinstance(hometown_str, str): return None, None
-                    key = hometown_str.strip().upper()
-                    if key in coords_map:
-                        return coords_map[key][0], coords_map[key][1]
-                    matches = difflib.get_close_matches(key, keys_list, n=1, cutoff=0.8)
-                    if matches:
-                        return coords_map[matches[0]][0], coords_map[matches[0]][1]
-                    return None, None
-
                 def get_coords_offline_local(hometown_str, coords_map, keys_list):
                     if not isinstance(hometown_str, str): return None, None
                     key = hometown_str.strip().upper()
