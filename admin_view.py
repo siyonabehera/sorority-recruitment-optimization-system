@@ -11,7 +11,6 @@ import time
 import random  # Added for randomized backoff jitter
 from io import BytesIO
 from math import radians
-from sentence_transformers import SentenceTransformer
 from sklearn.cluster import AgglomerativeClustering
 from sklearn.metrics.pairwise import haversine_distances
 from gspread.exceptions import APIError, WorksheetNotFound
@@ -219,10 +218,6 @@ def get_gspread_client():
         st.error(f"❌ API Connection Error: {e}")
         return None
 
-# --- CACHED RESOURCES ---
-@st.cache_resource
-def load_model():
-    return SentenceTransformer('all-MiniLM-L6-v2')
 
 @st.cache_data
 def load_city_database():
