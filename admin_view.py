@@ -218,20 +218,31 @@ def get_gspread_client():
         st.error(f"❌ API Connection Error: {e}")
         return None
 
-
 @st.cache_data
 def load_city_database():
-    url = "https://raw.githubusercontent.com/kelvins/US-Cities-Database/main/csv/us_cities.csv"
+    # Global cities database
+    url = "https://raw.githubusercontent.com/dr5hn/countries-states-cities-database/master/csv/cities.csv"
     try:
-        ref_df = pd.read_csv(url)
-        ref_df['MATCH_KEY'] = (ref_df['CITY'] + ", " + ref_df['STATE_CODE']).str.upper()
+        # Load the CSV
+        ref_df = pd.read_csv(url, low_memory=False)
+        
+        # Drop rows that are missing the necessary matching data
+        ref_df = ref_df.dropna(subset=['name', 'state_code', 'latitude', 'longitude'])
+        
+        # Construct the MATCH_KEY to match your form's "City, State" format
+        ref_df['MATCH_KEY'] = (ref_df['name'].astype(str) + ", " + ref_df['state_code'].astype(str)).str.upper()
+        
+        # Drop duplicates to prevent dictionary key collisions
         ref_df = ref_df.drop_duplicates(subset=['MATCH_KEY'], keep='first')
+        
+        # Return the dictionary and the list of keys
         return {
             key: [lat, lon]
-            for key, lat, lon in zip(ref_df['MATCH_KEY'], ref_df['LATITUDE'], ref_df['LONGITUDE'])
+            for key, lat, lon in zip(ref_df['MATCH_KEY'], ref_df['latitude'], ref_df['longitude'])
         }, list(ref_df['MATCH_KEY'])
+        
     except Exception as e:
-        st.error(f"Failed to load city database: {e}")
+        st.error(f"Failed to load global city database: {e}")
         return {}, []
 
 # --- HELPERS WITH RETRY & CACHING ---
