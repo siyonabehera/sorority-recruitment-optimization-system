@@ -997,6 +997,8 @@ else:
                 EXTRACTION_SYSTEM_PROMPT = """You are a recruitment matching assistant for a college sorority.
                 Read each person's academic and personal profile and extract normalized semantic tags
                 that will be used to match them with compatible people.
+                EXISTING TAGS:
+                {existing_tags}
 
                 TAG RULES:
                 - Lowercase with underscores (e.g. pre_med, greek_life, east_coast)
@@ -1005,6 +1007,8 @@ else:
                 - Capture shared background: "small town girl", "rural upbringing" → small_town_background
                 - Capture meaningful values: "first gen student", "first generation college" → first_generation
                 - Include: academic field, career direction, sports/athletics, hobbies, org involvement, background
+                - IF AN EXISTING TAG FITS perfectly, you MUST use it rather than creating a new variation.
+                - Only invent a new tag if the existing tags do not cover the person's profile.
                 - Return 5–12 tags per person
                 - BE CONSISTENT: if two people have similar profiles they MUST share tags — this is critical
                   for the matching algorithm to work correctly
@@ -1021,9 +1025,11 @@ else:
                             parts.append(f"{field}: {val}")
                     return "\n".join(parts) if parts else "No profile information provided."
 
-                def _extract_attrs_batch(profiles: list) -> list:
+                def _extract_attrs_batch(profiles: list, master_tags: set) -> list:
                     numbered = [f"Person {i+1}:\n{p}" for i, p in enumerate(profiles)]
-                    content = EXTRACTION_SYSTEM_PROMPT + "\n\n" + "\n\n".join(numbered)
+                    # Format the prompt with the running list of tags
+                    tags_str = ", ".join(sorted(master_tags)) if master_tags else "None yet. You are the first batch, establish a good baseline."
+                    content = EXTRACTION_SYSTEM_PROMPT.format(existing_tags=tags_str) + "\n\n" + "\n\n".join(numbered)
 
                     for attempt in range(1, EXTRACTION_RETRY_ATTEMPTS + 1):
                         try:
@@ -1058,40 +1064,37 @@ else:
                                 status_container.error("Extraction failed for this batch — assigning empty tags.")
                                 return [set() for _ in profiles]
 
-                def process_dataframe_llm(df, id_col_name, entity_name):
+                def process_dataframe_llm(df, id_col_name, entity_name, master_tags):
                     llm_attrs = {}
                     rows = df.to_dict('records')
                     total_batches = (len(rows) + EXTRACTION_BATCH_SIZE - 1) // EXTRACTION_BATCH_SIZE
-                    
                     progress_bar = st.progress(0)
-
+                    
                     for batch_idx, batch_start in enumerate(range(0, len(rows), EXTRACTION_BATCH_SIZE)):
                         batch_start_time = time.time()
                         batch = rows[batch_start: batch_start + EXTRACTION_BATCH_SIZE]
                         profiles = [_build_profile_str(r) for r in batch]
                         end = min(batch_start + EXTRACTION_BATCH_SIZE, len(rows))
-
                         status_container.info(f"Extracting {entity_name} Semantic Tags via Gemini: {batch_start+1}–{end} of {len(rows)}...")
-                        tag_lists = _extract_attrs_batch(profiles)
-
+                        
+                        tag_lists = _extract_attrs_batch(profiles, master_tags)
+                        
                         for i, row in enumerate(batch):
-                            llm_attrs[row[id_col_name]] = tag_lists[i]
-
-                        # Update progress bar
+                            extracted_tags = tag_lists[i]
+                            llm_attrs[row[id_col_name]] = extracted_tags
+                            master_tags.update(extracted_tags) 
+                        
                         progress_bar.progress((batch_idx + 1) / total_batches)
-
                         elapsed = time.time() - batch_start_time
                         sleep_time = max(0.0, MIN_SECONDS_PER_REQUEST - elapsed)
                         if batch_start + EXTRACTION_BATCH_SIZE < len(rows):
                             time.sleep(sleep_time)
-
-                    progress_bar.empty() # Remove progress bar when done
+                    progress_bar.empty()
                     return llm_attrs
 
-                # Execute LLM Extraction
-                mem_llm_attrs = process_dataframe_llm(df_mem, 'Sorority ID', 'Members')
-                pnm_llm_attrs = process_dataframe_llm(pnm_clean, 'PNM ID', 'PNMs')
-                
+                shared_vocabulary = set()
+                mem_llm_attrs = process_dataframe_llm(df_mem, 'Sorority ID', 'Members', shared_vocabulary)
+                pnm_llm_attrs = process_dataframe_llm(pnm_clean, 'PNM ID', 'PNMs', shared_vocabulary)
                 status_container.success("Geographical and Semantic Attribute extraction complete! Finalizing...")
 
                 # --- 5. FINALIZE ATTRIBUTES ---
